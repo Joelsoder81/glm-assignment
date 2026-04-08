@@ -42,6 +42,7 @@ summary(my.small.model)
 ```
 
 # Task 1
+```{r}
 table(GSSdata24$pres20, useNA='always')
 table(GSSdata24$pres20==2, useNA='always')
 
