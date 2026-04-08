@@ -91,6 +91,86 @@ summary(model)
 ```
 $$z_{\text{obs}} = \frac{\hat{\beta}_{\text{sex,22}} - \hat{\beta}_{\text{sex,24}}}{\sqrt{\mathrm{SE}(\hat{\beta}_{\text{sex,22}})^2 + \mathrm{SE}(\hat{\beta}_{\text{sex,24}})^2}}$$
 
+# Task 2:
+```{r}
+# Välj alla variabler som används i någon av modellerna
+vars_needed <- c(
+  "pres20", "sex", "owngun", "degree",
+  "region", "race", "res16", "realinc"
+)
+
+# Behåll bara kompletta observationer
+GSS_clean <- na.omit(GSSdata24[, vars_needed])
+
+# Small logit
+m_small_logit <- glm(
+  pres20 == 2 ~
+    I(sex == 2) +
+    I(owngun == 1) +
+    I(degree %in% c(4, 5)),
+  data = GSS_clean,
+  family = binomial(link = "logit")
+)
+
+# Big logit
+m_big_logit <- glm(
+  pres20 == 2 ~
+    I(sex == 2) +
+    I(owngun == 1) +
+    I(degree %in% c(4, 5)) +
+    factor(region) +
+    factor(race) +
+    factor(res16) +
+    log(realinc),
+  data = GSS_clean,
+  family = binomial(link = "logit")
+)
+
+# Small probit
+m_small_probit <- glm(
+  pres20 == 2 ~
+    I(sex == 2) +
+    I(owngun == 1) +
+    I(degree %in% c(4, 5)),
+  data = GSS_clean,
+  family = binomial(link = "probit")
+)
+
+# Big probit
+m_big_probit <- glm(
+  pres20 == 2 ~
+    I(sex == 2) +
+    I(owngun == 1) +
+    I(degree %in% c(4, 5)) +
+    factor(region) +
+    factor(race) +
+    factor(res16) +
+    log(realinc),
+  data = GSS_clean,
+  family = binomial(link = "probit")
+)
+
+# Sammanfattningar
+summary(m_small_logit)
+summary(m_big_logit)
+summary(m_small_probit)
+summary(m_big_probit)
+
+# Modelljämförelser
+anova(m_small_logit, m_big_logit, test = "Chisq")
+anova(m_small_probit, m_big_probit, test = "Chisq")
+
+# AIC-jämförelse
+AIC(m_small_logit, m_big_logit, m_small_probit, m_big_probit)
+
+# Kontroll: alla modeller ska nu ha samma antal observationer
+nobs(m_small_logit)
+nobs(m_big_logit)
+nobs(m_small_probit)
+nobs(m_big_probit)
+
+```
+
 # Task 3
 
 MIDWEST = 2
