@@ -77,7 +77,7 @@ model_2024 <- lm(pres20 ~ sex +
                       data = GSSdata24)
 ```
 
-
+z_{\text{obs}} = \frac{\hat{\beta}_{\text{sex,22}} - \hat{\beta}_{\text{sex,24}}}{\sqrt{\mathrm{SE}(\hat{\beta}_{\text{sex,22}})^2 + \mathrm{SE}(\hat{\beta}_{\text{sex,24}})^2}}
 
 ```{r}
 #| fig-width: 5
