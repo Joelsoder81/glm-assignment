@@ -42,7 +42,26 @@ summary(my.small.model)
 ```
 
 # Task 1
+table(GSSdata24$pres20, useNA='always')
+table(GSSdata24$pres20==2, useNA='always')
 
+model_24 <- glm( pres20==2 ~ 
+                   I(sex==2) + 
+                   I(owngun==1) +
+                   I(degree %in% c(4,5)), 
+                 data = GSSdata24,
+                 family = "binomial")
+
+summary(model_24)
+
+model_22 <- glm((pres20 == 2) ~ 
+                  I(sex == 2) + 
+                  I(owngun == 1) + 
+                  I(degree %in% c(4,5)),
+               family = "binomial",
+               data = GSSdata22)
+
+summary(model_22)
 
 
 
