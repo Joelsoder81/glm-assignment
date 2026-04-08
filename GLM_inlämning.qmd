@@ -91,7 +91,7 @@ summary(model)
 ```
 $$z_{\text{obs}} = \frac{\hat{\beta}_{\text{sex,22}} - \hat{\beta}_{\text{sex,24}}}{\sqrt{\mathrm{SE}(\hat{\beta}_{\text{sex,22}})^2 + \mathrm{SE}(\hat{\beta}_{\text{sex,24}})^2}}$$
 
-#Task 3
+# Task 3
 
 MIDWEST = 2
 
