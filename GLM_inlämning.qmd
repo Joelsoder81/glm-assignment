@@ -1,0 +1,68 @@
+---
+title: "Generalized linear models - VT26 "
+subtitle: "Inlämningsuppgift 1, 2.5 hp"
+author: 
+- David Müller
+- Filip Ström
+- Joel Söderman
+date: last-modified
+format: 
+  pdf: default
+  html:
+    self-contained: true
+language: 
+  title-block-author-single: " "
+crossref-fig-title: "Figur"
+title-block-banner-color: Primary
+title-block-published: "Publicerad"
+author-title: "Gruppmedlemmar"
+title-block-banner: true
+editor: source
+---
+
+```{r}
+#| output: false
+#| echo: false
+library('foreign')
+library('haven') 
+library('labelled')
+
+load(url("https://raw.githubusercontent.com/johankoskinen/ST304G/main/data/GSS2022selection.RData"))
+
+load(url("https://raw.githubusercontent.com/johankoskinen/ST304G/main/data/GSS2024selection.RData"))
+```
+
+```{r}
+#| echo: false
+table(GSSdata24$pres20, useNA='always')
+table(GSSdata24$pres20==2, useNA='always')
+
+my.small.model <- glm( pres20==2 ~ I(sex==2)+ I(owngun==1), data = GSSdata24, family = "binomial")
+summary(my.small.model)
+```
+
+# Task 1
+Hej Joel
+
+
+
+
+
+
+
+
+```{r}
+#| fig-width: 5
+#| fig-height: 3
+#| out-width: "50%"
+#| layout-ncol: 2
+#| fig-align: center
+#| echo: false
+```
+
+
+
+
+
+
+
