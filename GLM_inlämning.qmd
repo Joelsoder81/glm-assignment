@@ -42,10 +42,6 @@ summary(my.small.model)
 ```
 
 # Task 1
-Hej Joel
-Hej filip
-
-hej
 
 
 
