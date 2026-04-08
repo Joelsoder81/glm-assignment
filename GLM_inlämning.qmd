@@ -180,6 +180,28 @@ predict(*vilken modell*,
         newdata = *newdata som innehåller region == 2*,
         type = "response")
 ```
+
+```{r}
+newdata <- data.frame(
+  sex = 2, 
+  owngun = 1,
+  degree = 4,
+  region = factor(2),
+  race = factor(1),
+  res16 = factor(2),
+  realinc = 45000)
+```
+
+```{r}
+predict(m_big_logit, 
+        newdata = newdata,
+        type = "response")
+
+predict(m_big_probit, 
+        newdata = newdata,
+        type = "response")
+```
+
 ```{r}
 #| fig-width: 5
 #| fig-height: 3
