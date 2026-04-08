@@ -1,0 +1,13 @@
+---
+title: "Inlämning GLM"
+format: pdf
+editor: visual
+---
+
+```{r}
+library('foreign')
+library('haven')# this package is needed to read Stata version 5-12 .dta file 
+library('labelled')# this is needed to undo all the annoying things haven does
+#GSSdata24 <- as.data.frame( read_dta( 'GSS2024.dta' ), stringsAsFactors=FALSE ) # once you have downloaded the .dta you can read it using read_dta
+#GSSdata22 <- as.data.frame( read_dta( 'GSS2022.dta' ), stringsAsFactors=FALSE ) # once you have downloaded the .dta you can read it using read_dta
+```
