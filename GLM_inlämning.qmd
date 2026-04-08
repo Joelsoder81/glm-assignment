@@ -189,7 +189,127 @@ predict(*vilken modell*,
 #| echo: false
 ```
 
+# Part B
+```{r}
+table(GSSdata24$partners , useNA = 'always')
+```
 
+### Task 4
+```{r}
+dat <- GSSdata24
+dat$partners_num <- dat$partners
+# Vi ger de olika kategorierna specifika värden för att kunna ansätta 
+# dessa i vår modell. 
+# Kategori 5 innebär "5-10" partners <- sätts till 7
+# Kategori 6 innebär "11+" partners <- sätts till 12 (Vi gissar nära 11)
+# Kategori 9 innebär "ospecificierat" <- sätts till NA (saknat värden för att inte snedvrida resultatet)
+# Detta gör vi för att förstå koden lättare i och med att dessa värden är redan kategoriserade i olika grupper och inte är exakta tal. (vi ansätter ett "medelvärde")
+dat$partners_num[dat$partners == 5] <- 7
+dat$partners_num[dat$partners == 6] <- 12
+dat$partners_num[dat$partners == 9] <- NA
+
+#Vi tar bort alla saknade värden, detta då vi inte kan ha saknade värden som vår responsvariabel.
+dat <- subset(dat, !is.na(partners_num))
+
+#Vi skapar en variabel för om man är gift eller inte, 
+# TRUE = gift
+# FALSE = ej gift
+dat$married <- dat$marital == 1
+```
+
+Länkfunktion 1 - Poission Log-link:
+
+$$log(\mu) = \beta_0 + \beta_1 * marriedTRUE$$
+där:
+$$E(Y) = \mu $$
+```{r}
+# Nu skapar vi en Poission modell (eftersom att vi räknar antal)
+pois_1 <- glm(partners_num ~ married,
+              family = poisson(link = "log"),
+              data = dat
+)
+
+summary(pois_1)
+
+# Förväntat antal partners för en ogift person
+mu_unmarried <- exp(0.11714) # = 1.124277
+
+# Förväntat antal fler partners vid gift
+mu_married <- exp(-0.08026) # = 0.9228764
+
+list("partners vid ogift" = mu_unmarried, "partners vid gift" = mu_married)
+```
+
+Tolkning av koefficienter:
+Intercept (0.11714): Detta är det logaritmerade "mu" för en ogift individ När vi transformerar detta (exp) får vi ut att det förväntade analet partners för en ogift individ uppgick till 1.124277 stycken. 
+
+marriedTRUE (-0.08026): Detta anger skillnaden mellan att vara ogift kontra gift. Vid transformation av detta värdet (exp) får vi ut ett förväntat värde på 0.9228764. Sätt ur en procentuell vinkel så kan vi säga att gifta personer i genomsnitt har $8 \%$ färre partners än ogifta. (Se nedan varför vi kan göra denna tolkning)
+
+p-värde (0.0426): marriedTRUE är signifikant på 95% nivån, således kan vi med 95% konfidens konstatera att gifta individer har färre partners. 
+
+# Deviance (Hur väl modellen passar data)
+
+Länkfunktion 2 - Logit-modell:
+
+```{r}
+# Minst en partner
+# TRUE = ja
+# FALSE = nej
+dat$any_partner <- dat$partners_num > 0
+
+# Fler än en partner
+# TRUE = ja
+# FALSE = nej
+dat$many_partners <- dat$partners_num > 1
+```
+
+```{r}
+# Logit modell - minst en partner:
+logit_any <- glm(any_partner ~ married, 
+                 family = binomial(link = "logit"), 
+                 data = dat
+                 )
+summary(logit_any)
+
+odds_any_unmarried <- exp(0.378) # 1.46
+odds_any_married <- exp(1.60136) # 4.96
+
+prob_any_unmarried <- odds_any_unmarried / (1 + odds_any_unmarried) # 0.5934
+prob_any_married <- odds_any_married / (1 + odds_any_married) # 0.8322
+
+list("Prob if unmarried" = prob_any_unmarried, 
+     "Prob if married" = prob_any_married)
+```
+Tolkning av koefficienter:
+Intercept (0.378): Är vårt logodds för ogifta individer som har haft minst en partner. Vid transformation av detta får vi ut oddset som uppgick till 0.5934. Sedermera omvandlar vi detta till en sannolikhet som säger oss att ogifta personer har ca $59 \%$ sannolikhet att ha haft minst en partner
+
+marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gifta. Vi transformerar detta till odds (4.96) och sedan till en sannolikhet (0.8322). Här kan det konstateras att gifta individer har ca $83\%$ sannolikhet att ha haft minst en partner, vilket således är mycket högre än de ogifta individerna. Notering: I och med att koeficienten är positiv vet vi att "vara gift" ökar sannolikheten att minst haft en partner, värt att nämna är att detta resultat är ytterst signifikant (p-värde: 2e-16). 
+
+```{r}
+# Logit modell - fler än en partner:
+logit_many <- glm(many_partners ~ married, 
+                 family = binomial(link = "logit"), 
+                 data = dat
+                 )
+summary(logit_many)
+
+odds_many_unmarried <- exp(-1.65673) # 0.19076
+odds_many_married <- exp(-1.58646) # 0.20465
+
+prob_many_unmarried <- odds_many_unmarried / (1 + odds_many_unmarried) # 0.16
+prob_many_married <- odds_many_married / (1 + odds_many_married) # 0.1699
+
+list("Prob if unmarried" = prob_many_unmarried, 
+     "Prob if married" = prob_many_married)
+```
+Tolkning av koefficienter:
+Intercept (-1.65673): Är vårt logodds för ogifta individer som har haft fler än en partner. Vid transformation av detta får vi ut oddset som uppgick till 0.19076. Sedermera omvandlar vi detta till en sannolikhet som säger oss att ogifta personer har ca $16 \%$ sannolikhet att ha haft fler än en partner
+
+marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gifta. Vi transformerar detta till odds (0.20465) och sedan till en sannolikhet (0.1699). Här kan det konstateras att gifta individer har ca $16.99\%$ sannolikhet att ha haft fler än en partner, 
+
+vilket således är mycket högre än de ogifta individerna. Notering: I och med att koeficienten är positiv vet vi att "vara gift" ökar sannolikheten att ha haft fler än en partner, värt att nämna är att detta resultat är ytterst signifikant (p-värde: 2e-16). 
+
+# Måste ta hänsyn till Intercept! Tror jag missat de på log odds och kanske den andra. 
 
 
 
