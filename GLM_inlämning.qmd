@@ -63,8 +63,17 @@ model_22 <- glm((pres20 == 2) ~
 
 summary(model_22)
 
+```{r}
+model_2022 <- lm(pres20 ~ sex +
+                      owngun + 
+                      degree,
+                      data = GSSdata22)
 
-
+model_2024 <- lm(pres20 ~ sex +
+                      owngun + 
+                      degree,
+                      data = GSSdata24)
+```
 
 
 
