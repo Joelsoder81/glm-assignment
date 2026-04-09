@@ -63,33 +63,29 @@ model_22 <- glm((pres20 == 2) ~
                data = GSSdata22)
 
 summary(model_22)
-```
-CHATGPT-KOD
-```{r}
-common <- intersect(names(GSSdata22), names(GSSdata24))
 
-GSSdata22_sub <- GSSdata22[, common]
-GSSdata24_sub <- GSSdata24[, common]
+
+vars_needed <- c("pres20", "sex", "owngun", "degree")
+
+GSSdata22_sub <- GSSdata22[, vars_needed]
+GSSdata24_sub <- GSSdata24[, vars_needed]
 
 GSSdata22_sub$year <- 2022
 GSSdata24_sub$year <- 2024
 
 GSSdata <- rbind(GSSdata22_sub, GSSdata24_sub)
-```
 
-```{r}
-GSSdata$year2024 <- ifelse(GSSdata$year == 2024, 1, 0)
 
-model <- glm(pres20 == 2 ~ 
-               I(sex == 2) * year2024 + 
-               I(owngun == 1) +
-               I(degree %in% c(4,5)),
-             data = GSSdata,
-             family = binomial)
+model <- glm(
+  I(pres20 == 2) ~ I(sex == 2) * I(year == 2024) +
+    I(owngun == 1) +
+    I(degree %in% c(4, 5)),
+  data = GSSdata,
+  family = binomial
+)
 
 summary(model)
 ```
-$$z_{\text{obs}} = \frac{\hat{\beta}_{\text{sex,22}} - \hat{\beta}_{\text{sex,24}}}{\sqrt{\mathrm{SE}(\hat{\beta}_{\text{sex,22}})^2 + \mathrm{SE}(\hat{\beta}_{\text{sex,24}})^2}}$$
 
 # Task 2:
 ```{r}
