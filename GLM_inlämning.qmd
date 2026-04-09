@@ -208,40 +208,38 @@ predict(m_big_probit,
 ```
 
 # Part B
+### Task 4
 ```{r}
 table(GSSdata24$partners , useNA = 'always')
 ```
+Variabeln partners beskriver antal partners som den tillfrågade har rapporterat Variabeln är delvis censorerad då vissa kategorier representerar ett intervall (ex 5 som motsvarar 5-10 i antal) snarare än ett exakt antal. För att hantera detta problem behövde vi approximera ett ungefärligt exakt värde för dessa intervall. Vi ansatte kategori 5 till 7 stycken (i antal) då detta låg nära ett "medel" i kategorin samt 12 för kategorin 11+. Kategori 9 innebär "ospecificierat" och vi valde att sätta denna till NA (saknat värden för att inte snedvrida resultatet). 
 
-### Task 4
+Sedermera valde vi att ta bort de saknade värderna från vårt dataset då GLM modeller kräver observerade responsvärden.
+
+Vi skapar dessutom en binär variabel "married" för att kunna undersöka om äktenskap påverkar antal partners: TRUE = gift, FALSE = ej gift. 
+
 ```{r}
 dat <- GSSdata24
 dat$partners_num <- dat$partners
-# Vi ger de olika kategorierna specifika värden för att kunna ansätta 
-# dessa i vår modell. 
-# Kategori 5 innebär "5-10" partners <- sätts till 7
-# Kategori 6 innebär "11+" partners <- sätts till 12 (Vi gissar nära 11)
-# Kategori 9 innebär "ospecificierat" <- sätts till NA (saknat värden för att inte snedvrida resultatet)
-# Detta gör vi för att förstå koden lättare i och med att dessa värden är redan kategoriserade i olika grupper och inte är exakta tal. (vi ansätter ett "medelvärde")
+
 dat$partners_num[dat$partners == 5] <- 7
 dat$partners_num[dat$partners == 6] <- 12
 dat$partners_num[dat$partners == 9] <- NA
 
-#Vi tar bort alla saknade värden, detta då vi inte kan ha saknade värden som vår responsvariabel.
+# Kanske lite längre förklaring till denna koddel. 
 dat <- subset(dat, !is.na(partners_num))
 
-#Vi skapar en variabel för om man är gift eller inte, 
-# TRUE = gift
-# FALSE = ej gift
 dat$married <- dat$marital == 1
 ```
 
 Länkfunktion 1 - Poission Log-link:
+Eftersom att responsvariabeln representerar antal har vi valt att använda en poisson regression med log länk. 
 
 $$log(\mu) = \beta_0 + \beta_1 * marriedTRUE$$
 där:
 $$E(Y) = \mu $$
+Alltså, vi modellerar förväntat antal partners. 
 ```{r}
-# Nu skapar vi en Poission modell (eftersom att vi räknar antal)
 pois_1 <- glm(partners_num ~ married,
               family = poisson(link = "log"),
               data = dat
@@ -252,8 +250,8 @@ summary(pois_1)
 # Förväntat antal partners för en ogift person
 mu_unmarried <- exp(0.11714) # = 1.124277
 
-# Förväntat antal fler partners vid gift
-mu_married <- exp(-0.08026) # = 0.9228764
+# Förväntat antal partners vid gift
+mu_married <- exp(0.11714 + (-0.08026)) # = 1.037569
 
 list("partners vid ogift" = mu_unmarried, "partners vid gift" = mu_married)
 ```
@@ -261,23 +259,27 @@ list("partners vid ogift" = mu_unmarried, "partners vid gift" = mu_married)
 Tolkning av koefficienter:
 Intercept (0.11714): Detta är det logaritmerade "mu" för en ogift individ När vi transformerar detta (exp) får vi ut att det förväntade analet partners för en ogift individ uppgick till 1.124277 stycken. 
 
-marriedTRUE (-0.08026): Detta anger skillnaden mellan att vara ogift kontra gift. Vid transformation av detta värdet (exp) får vi ut ett förväntat värde på 0.9228764. Sätt ur en procentuell vinkel så kan vi säga att gifta personer i genomsnitt har $8 \%$ färre partners än ogifta. (Se nedan varför vi kan göra denna tolkning)
+marriedTRUE (-0.08026): Detta anger skillnaden mellan att vara ogift kontra gift. Vid transformation av detta värdet tillsammans med interceptet får vi ut ett förväntat värde på 1.0376 Sätt ur en procentuell vinkel så kan vi säga att gifta personer i genomsnitt har $8 \%$ färre förväntade partners än ogifta. (Se nedan varför vi kan göra denna tolkning)
 
-p-värde (0.0426): marriedTRUE är signifikant på 95% nivån, således kan vi med 95% konfidens konstatera att gifta individer har färre partners. 
+p-värde (0.0426): marriedTRUE är signifikant på 95% nivån, således kan vi med 95% säkerhet konstatera att gifta individer har färre partners. 
 
-# Deviance (Hur väl modellen passar data)
+Modellkontroll:
+```{r}
+# Korrekt?
+deviance(pois_1) / df.residual(pois_1)
+```
+Här testar vi huruvida det finns någon overdipersion. Vi antar i en poisson fördelning att variansen är lika med medelvärdet. Kvoten mellan deviance och frihetsgraderna indikerar på att där finns overdipersion, vilket kan innebära att poissonmodellen kan underskatta variationen i data. 
+
+Overdipersion är rimligt i detta fall då vi har aproximerat samt hanterat censurerad data. 
 
 Länkfunktion 2 - Logit-modell:
 
+Vi skapar 2 stycken binära variabler:
+- Minst en partner (any_partner)
+- Fler än en partner (many_partners)
 ```{r}
-# Minst en partner
-# TRUE = ja
-# FALSE = nej
 dat$any_partner <- dat$partners_num > 0
 
-# Fler än en partner
-# TRUE = ja
-# FALSE = nej
 dat$many_partners <- dat$partners_num > 1
 ```
 
@@ -290,18 +292,18 @@ logit_any <- glm(any_partner ~ married,
 summary(logit_any)
 
 odds_any_unmarried <- exp(0.378) # 1.46
-odds_any_married <- exp(1.60136) # 4.96
+odds_any_married <- exp(0.378 + 1.60136) # 7.238
 
 prob_any_unmarried <- odds_any_unmarried / (1 + odds_any_unmarried) # 0.5934
-prob_any_married <- odds_any_married / (1 + odds_any_married) # 0.8322
+prob_any_married <- odds_any_married / (1 + odds_any_married) # 0.8786
 
 list("Prob if unmarried" = prob_any_unmarried, 
      "Prob if married" = prob_any_married)
 ```
 Tolkning av koefficienter:
-Intercept (0.378): Är vårt logodds för ogifta individer som har haft minst en partner. Vid transformation av detta får vi ut oddset som uppgick till 0.5934. Sedermera omvandlar vi detta till en sannolikhet som säger oss att ogifta personer har ca $59 \%$ sannolikhet att ha haft minst en partner
+Intercept (0.378): Är vårt logodds för ogifta individer som har haft minst en partner. Vid transformation av detta får vi ut oddset som uppgick till 1.46. Sedermera omvandlar vi detta till en sannolikhet som säger oss att ogifta personer har ca $59 \%$ sannolikhet att ha haft minst en partner
 
-marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gifta. Vi transformerar detta till odds (4.96) och sedan till en sannolikhet (0.8322). Här kan det konstateras att gifta individer har ca $83\%$ sannolikhet att ha haft minst en partner, vilket således är mycket högre än de ogifta individerna. Notering: I och med att koeficienten är positiv vet vi att "vara gift" ökar sannolikheten att minst haft en partner, värt att nämna är att detta resultat är ytterst signifikant (p-värde: 2e-16). 
+marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gifta. Vi transformerar detta till odds genom att addera $\beta_1$ (1.6) med interceptet för att sedan exponentiera det (Odds = 7.238). Sedan omvandlar vi oddset till en sannolikhet (0.8786). Här kan det konstateras att gifta individer har ca $88\%$ sannolikhet att ha haft minst en partner, vilket således är mycket högre än de ogifta individerna. Notering: I och med att koeficienten är positiv vet vi att "vara gift" ökar sannolikheten att minst haft en partner, värt att nämna är att detta resultat är ytterst signifikant (p-värde: 2e-16). 
 
 ```{r}
 # Logit modell - fler än en partner:
@@ -312,22 +314,26 @@ logit_many <- glm(many_partners ~ married,
 summary(logit_many)
 
 odds_many_unmarried <- exp(-1.65673) # 0.19076
-odds_many_married <- exp(-1.58646) # 0.20465
+odds_many_married <- exp(-1.58646 + (-1.65673)) # 0.039
 
 prob_many_unmarried <- odds_many_unmarried / (1 + odds_many_unmarried) # 0.16
-prob_many_married <- odds_many_married / (1 + odds_many_married) # 0.1699
+prob_many_married <- odds_many_married / (1 + odds_many_married) # 0.0376
 
 list("Prob if unmarried" = prob_many_unmarried, 
      "Prob if married" = prob_many_married)
 ```
 Tolkning av koefficienter:
-Intercept (-1.65673): Är vårt logodds för ogifta individer som har haft fler än en partner. Vid transformation av detta får vi ut oddset som uppgick till 0.19076. Sedermera omvandlar vi detta till en sannolikhet som säger oss att ogifta personer har ca $16 \%$ sannolikhet att ha haft fler än en partner
+Intercept (-1.65673): Är vårt logodds för ogifta individer som har haft fler än en partner. Vid transformation av detta får vi ut oddset som uppgick till 0.19076. Sedermera omvandlar vi detta till en sannolikhet som säger oss att ogifta personer har ca $16 \%$ sannolikhet att ha haft fler än en partner.
 
-marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gifta. Vi transformerar detta till odds (0.20465) och sedan till en sannolikhet (0.1699). Här kan det konstateras att gifta individer har ca $16.99\%$ sannolikhet att ha haft fler än en partner, 
+marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gifta. Vi transformerar detta till odds (0.039) och sedan till en sannolikhet (0.0376). Här kan det konstateras att gifta individer har ca $3.76\%$ sannolikhet att ha haft fler än en partner, vilket således är mycket lägre än de ogifta individerna. Notering: I och med att koeficienten är negativ vet vi att "vara gift" minskar sannolikheten att ha haft fler än en partner, värt att nämna är att detta resultat är ytterst signifikant (p-värde: 2e-16). 
 
-vilket således är mycket högre än de ogifta individerna. Notering: I och med att koeficienten är positiv vet vi att "vara gift" ökar sannolikheten att ha haft fler än en partner, värt att nämna är att detta resultat är ytterst signifikant (p-värde: 2e-16). 
+Tolkning Länkfunktion 2:
+Efter modelleringen kan vi konstatera att äktenskap (att vara gift) ökar sannolikheten att ha haft minst en partner, men att äktenskap samtidigt minskar sannolikheten att ha flera partners. 
 
-# Måste ta hänsyn till Intercept! Tror jag missat de på log odds och kanske den andra. 
+Prediktion (Hypotetisk respondent):
+```{r}
+
+```
 
 
 
