@@ -88,7 +88,7 @@ summary(model)
 ```
 We estimate 2 logistic regression models, one using the 2022 data and one using the 2024 data. The dependent variable in our models is an indicator for whether the person voted for Donald Trump or not. The covariates in our models are gender (female), gun ownership and having an education beyond high school or not.
 
-To analyze whether the association between gender (female) and voting for Trump we created a combined model using pooled data. We create a new variable for “year” and an interaction variable between the gender male and the year 2024 in the combined model. The p-value that we receive from the summary output is 0.787, since the large p-value: there is no statistical evidence that the association between female and the outcome has changed between the years. We can’t reject the null-hypothesis that there is no difference in the effect. 
+To analyze whether the association between gender (female) and voting for Trump we created a combined model using pooled data. We create a new variable for “year” and an interaction variable between the gender female and the year 2024 in the combined model. The p-value that we receive from the summary output is 0.787, since the large p-value: there is no statistical evidence that the association between female and the outcome has changed between the years. We can’t reject the null-hypothesis that there is no difference in the effect. 
 
 # Task 2:
 ```{r}
