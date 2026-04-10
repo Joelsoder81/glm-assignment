@@ -172,13 +172,7 @@ nobs(m_big_probit)
 
 # Task 3
 
-MIDWEST = 2
-data = GSSdata24
-```{r}
-predict(*vilken modell*, 
-        newdata = *newdata som innehåller region == 2*,
-        type = "response")
-```
+Anteckning, tas bort sen: MIDWEST = 2
 
 ```{r}
 newdata <- data.frame(
