@@ -33,19 +33,27 @@ load(url("https://raw.githubusercontent.com/johankoskinen/ST304G/main/data/GSS20
 ```
 
 ```{r}
+#| output: false
 #| echo: false
 table(GSSdata24$pres20, useNA='always')
 table(GSSdata24$pres20==2, useNA='always')
 
-my.small.model <- glm( pres20==2 ~ I(sex==2)+ I(owngun==1), data = GSSdata24, family = "binomial")
-summary(my.small.model)
+
 ```
+# Introduction
+This report analyzes data from the General Social Survey (GSS) using generalized linear models. In Part A, we study which factors are associated with voting for Donald Trump in the 2020 presidential election, using data from the 2022 and 2024 surveys. In Part B, we examine the reported number of sexual partners and discuss suitable models for this type of outcome.
+
+Throughout the report, we compare different model specifications and link functions, interpret the estimated effects, and evaluate how well the models fit the data. We also discuss missing values and other limitations where relevant.
+
+### Note on AI use 
+We used AI in a limited way to help format the output in the report, mainly by suggesting how to use knitr::kable() and similar commands to present summary() and anova() results more clearly. 
 
 # Task 1
+::: {.columns}
+::: {.column width="50%"}
 ```{r}
-table(GSSdata24$pres20, useNA='always')
-table(GSSdata24$pres20==2, useNA='always')
-
+#| echo: false
+#| 
 model_24 <- glm( pres20==2 ~ 
                    I(sex==2) + 
                    I(owngun==1) +
@@ -53,8 +61,15 @@ model_24 <- glm( pres20==2 ~
                  data = GSSdata24,
                  family = "binomial")
 
-summary(model_24)
 
+knitr::kable(summary(model_24)$coefficients, digits = 3)
+
+```
+For the 2024 model, gun ownership is positively associated with voting for Trump, while having a Bachelor’s or Graduate degree is negatively associated with the outcome. The coefficient for being female is negative, but it is not statistically significant, which means that we do not find clear evidence of a gender effect in this model.
+
+
+```{r}
+#| echo: false
 model_22 <- glm((pres20 == 2) ~ 
                   I(sex == 2) + 
                   I(owngun == 1) + 
@@ -62,9 +77,14 @@ model_22 <- glm((pres20 == 2) ~
                family = "binomial",
                data = GSSdata22)
 
-summary(model_22)
+knitr::kable(summary(model_22)$coefficients, digits = 3)
+```
+The 2022 model shows a similar pattern. Gun ownership is again positively associated with voting for Trump, while higher education is negatively associated with the outcome. In this model, being female also has a negative coefficient, and here the effect is statistically significant.
 
 
+To formally test whether the association between being female and voting for Trump changed over time, we then created a pooled dataset that combines the observations from 2022 and 2024. In the code, we first selected the variables needed for the analysis, then added a new variable called year to identify which survey year each observation comes from, and finally stacked the two datasets together using rbind(). In the combined model, we included an interaction term between I(sex == 2) and I(year == 2024). This interaction term is the key part of the code, because it tests whether the effect of being female differs between 2022 and 2024, rather than simply estimating one common effect across both years.
+```{r}
+#| echo: false
 vars_needed <- c("pres20", "sex", "owngun", "degree")
 
 GSSdata22_sub <- GSSdata22[, vars_needed]
@@ -75,24 +95,24 @@ GSSdata24_sub$year <- 2024
 
 GSSdata <- rbind(GSSdata22_sub, GSSdata24_sub)
 
-
 model <- glm(
-  I(pres20 == 2) ~ I(sex == 2) * I(year == 2024) +
-    I(owngun == 1) +
-    I(degree %in% c(4, 5)),
+  I(pres20 == 2) ~ .,
   data = GSSdata,
   family = binomial
 )
 
-summary(model)
+knitr::kable(summary(model)$coefficients, digits = 3)
 ```
-We estimate 2 logistic regression models, one using the 2022 data and one using the 2024 data. The dependent variable in our models is an indicator for whether the person voted for Donald Trump or not. The covariates in our models are gender (female), gun ownership and having an education beyond high school or not.
-
-To analyze whether the association between gender (female) and voting for Trump we created a combined model using pooled data. We create a new variable for “year” and an interaction variable between the gender female and the year 2024 in the combined model. The p-value that we receive from the summary output is 0.787, since the large p-value: there is no statistical evidence that the association between female and the outcome has changed between the years. We can’t reject the null-hypothesis that there is no difference in the effect. 
+The p-value for the interaction term is 0.787. Since this p-value is large, there is no statistical evidence that the association between being female and voting for Trump changed between the two years. Therefore, we cannot reject the null hypothesis that the effect of being female is the same in 2022 and 2024. 
 
 # Task 2:
+We estimated four models, a small and a large specification, each with both a logit and a probit link. In the code, we first defined a set of variables that are used in at least one of the models. We then created GSS_clean by applying na.omit() to these variables, which means that all four models are estimated on the same complete cases. This is important, because it makes the comparison between models more fair. If the models were estimated on different subsets of the data, differences in AIC or model fit could partly reflect differences in the sample rather than differences in the models themselves.
+
+The smaller models include only sex, gun ownership, and education, while the larger models also include region, race, type of community, and logged income. We estimated both logit and probit versions in order to compare whether the results depend on the choice of link function. We then used summary() to inspect the coefficients, anova() to compare the smaller and larger models formally, and AIC() to compare overall model fit. Finally, we used nobs() to verify that all four models were estimated on the same number of observations.
+
 ```{r}
-# Välj alla variabler som används i någon av modellerna
+#| output: false
+#| echo: false
 vars_needed <- c(
   "pres20", "sex", "owngun", "degree",
   "region", "race", "res16", "realinc"
@@ -114,13 +134,7 @@ m_small_logit <- glm(
 # Big logit
 m_big_logit <- glm(
   pres20 == 2 ~
-    I(sex == 2) +
-    I(owngun == 1) +
-    I(degree %in% c(4, 5)) +
-    factor(region) +
-    factor(race) +
-    factor(res16) +
-    log(realinc),
+    .,
   data = GSS_clean,
   family = binomial(link = "logit")
 )
@@ -138,37 +152,83 @@ m_small_probit <- glm(
 # Big probit
 m_big_probit <- glm(
   pres20 == 2 ~
-    I(sex == 2) +
-    I(owngun == 1) +
-    I(degree %in% c(4, 5)) +
-    factor(region) +
-    factor(race) +
-    factor(res16) +
-    log(realinc),
+    .,
   data = GSS_clean,
   family = binomial(link = "probit")
 )
 
-# Sammanfattningar
-summary(m_small_logit)
-summary(m_big_logit)
-summary(m_small_probit)
-summary(m_big_probit)
+```
 
-# Modelljämförelser
-anova(m_small_logit, m_big_logit, test = "Chisq")
-anova(m_small_probit, m_big_probit, test = "Chisq")
+### Small logit model
 
-# AIC-jämförelse
-AIC(m_small_logit, m_big_logit, m_small_probit, m_big_probit)
+```{r}
+#| echo: false
+knitr::kable(summary(m_small_logit)$coefficients, digits = 3)
+```
+The small logit model shows that gun ownership is positively associated with voting for Trump, while having a Bachelor’s or Graduate degree is negatively associated with the outcome. The coefficient for being female is negative, but it is not statistically significant, which means that we do not find clear evidence of a gender effect in the smaller logit specification.
 
-# Kontroll: alla modeller ska nu ha samma antal observationer
+### Big logit model
+```{r}
+#| echo: false
+knitr::kable(summary(m_big_logit)$coefficients, digits = 3)
+
+```
+In the larger logit model, the main pattern remains similar. Gun ownership is still positively associated with voting for Trump, while higher education is negatively associated with the outcome. After adding region, race, type of community, and income, the model captures more variation in the data, suggesting that these background variables are also important for explaining Trump voting.
+
+
+### Small probit model
+```{r}
+#| echo: false
+knitr::kable(summary(m_small_probit)$coefficients, digits = 3)
+```
+The small probit model gives results that are very similar to the small logit model. Gun ownership is again positively associated with voting for Trump, while higher education is negatively associated with the outcome. The effect of being female remains negative, but not statistically significant.
+
+### Big probit model
+```{r}
+#| echo: false
+knitr::kable(summary(m_big_probit)$coefficients, digits = 3)
+```
+The large probit model also shows a pattern similar to the large logit model. The signs and significance levels of the main variables are broadly consistent across the two link functions, which suggests that our conclusions are not very sensitive to whether we use a logit or a probit link.
+
+
+### ANOVA: Small vs Large Logit Model
+::: {.columns}
+```{r}
+#| echo: false
+knitr::kable(as.data.frame(anova(m_small_logit, m_big_logit, test = "Chisq")), 
+             digits = 3)
+```
+
+### ANOVA: Small vs Large probit Model
+```{r}
+#| echo: false
+knitr::kable(as.data.frame(anova(m_small_probit, m_big_probit, 
+                                 test = "Chisq")), digits = 3)
+```
+The ANOVA results show that the larger model improves the fit significantly compared with the smaller model, both for the logit and probit specifications. This suggests that the additional variables contribute useful explanatory information and should be included in the final model.
+
+### AIC comparison of the four models 
+```{r}
+#| echo: false
+aic_tab <- AIC(m_small_logit, m_big_logit, m_small_probit, m_big_probit)
+rownames(aic_tab) <- c("Small logit", "Large logit", "Small probit", 
+                       "Large probit")
+
+knitr::kable(aic_tab[, c("df", "AIC")], digits = 3)
+
+
+```
+Overall, the results suggest that demographic and social background variables are important for explaining Trump voting in 2020. In particular, gun ownership is associated with a higher probability of voting for Trump, while higher education is associated with a lower probability. Both the ANOVA comparisons and the AIC values show that the larger models fit the data better than the smaller models. Since the large logit model has the lowest AIC and is easier to interpret than the corresponding probit model, we choose it as our preferred final model. The similarity between the logit and probit results also suggests that the main conclusions are robust to the choice of link function.
+
+```{r}
+#| output: false
+#| echo: false
 nobs(m_small_logit)
 nobs(m_big_logit)
 nobs(m_small_probit)
 nobs(m_big_probit)
-
 ```
+
 
 # Task 3
 
@@ -185,15 +245,41 @@ newdata <- data.frame(
   realinc = 45000)
 ```
 
-```{r}
-predict(m_big_logit, 
-        newdata = newdata,
-        type = "response")
 
-predict(m_big_probit, 
-        newdata = newdata,
-        type = "response")
+# Task 3 - Joel
+To answer this task, we first created a new dataset where we only kept observations with complete information on the variables used in our models: sex, gun ownership, education, region, race, type of community, and income. We did this by using complete.cases(...), which checks which rows have no missing values (NA) on these variables. This step is necessary because the models cannot make predictions for individuals if some of the explanatory variables are missing.
+
+After this, we selected the individuals in this cleaned dataset who belong to the Midwest and who did not answer the question about the 2020 presidential election. In the dataset, Midwest is coded as region == 2, so we use this condition to identify that region. At the same time, we use is.na(pres20) to find the non-respondents, that is, the individuals with a missing value on the outcome variable. The symbol & is used to combine these conditions, meaning that both must be true at the same time: the person must both live in the Midwest and have a missing value on pres20.
+
+Finally, we used our two models, the larger logit model and the larger probit model, to predict the probability that each individual in this group voted for Trump. We then took the average of these predicted probabilities. This gives us a model-based estimate of the proportion of Trump voters among the non-respondents in the Midwest.
+
+
+```{r}
+#| echo: false
+GSS_pred <- GSSdata24[
+  complete.cases(GSSdata24[, c("sex", "owngun", "degree", "region", 
+                               "race", "res16", "realinc")]),
+]
+
+midwest_nr <- GSS_pred[GSS_pred$region == 2 & is.na(GSS_pred$pres20), ]
+
+logit_est <- mean(predict(m_big_logit, newdata = midwest_nr, 
+                          type = "response"))
+probit_est <- mean(predict(m_big_probit, newdata = midwest_nr, 
+                           type = "response"))
+
+pred_tab <- data.frame(
+  Model = c("Large logit", "Large probit"),
+  Estimated_rpercent = c(logit_est, probit_est) * 100
+)
+
+knitr::kable(pred_tab, digits = 1)
+
+
 ```
+The large logit model estimates that approximately 31.6 percent of the non-respondents in the Midwest voted for Trump, while the large probit model gives a very similar estimate of 31.8 percent. Since the two estimates are almost identical, the result appears robust to the choice of link function. We therefore conclude that the predicted proportion of Trump voters among non-respondents in the Midwest is about 32 percent.
+
+
 
 Part B Kommentarer
 - Saknar odds ratio
@@ -399,7 +485,6 @@ barplot(table(dat$partners_num),
 Fördelningen av antal partners är högerskev, där många tillfrågade rapporterat låga värden och få höga värden. Detta innebär att att sambandet mellan äktenskap och antalet partners inte är homogent över hela fördelningen. Denna analys blir däremot lite tvetydig då viss del av datan är censurerad. Vi antar däremot en högerskev fördelning. 
 
 Med detta antagande delar vi upp analysen i två delar: 
-
 1) Sannolikheten att ha haft minst en partner, och
 
 2) givet minst en partner, vad är sannolikheten att ha fler än en partner. 
@@ -407,6 +492,7 @@ Med detta antagande delar vi upp analysen i två delar:
 Skillnaden mellan att ha minst en partner och fler än en visar således att äktenskap främst är relaterad till sannolikheten att överhuvudtaget ha en partner, snarare än till ett högre antal partners bland individer som redan haft en partner. I och med detta kan en uppdelad modellstruktur motiveras. 
 
 Detta kan kopplas till Zeltermans modell, som fokuserar på:
+
 
 
 
