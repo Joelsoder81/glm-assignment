@@ -195,6 +195,20 @@ predict(m_big_probit,
         type = "response")
 ```
 
+Part B Kommentarer
+- Saknar odds ratio
+- Deviation korrekt?
+- Mer latex som stämmer överrens med frl anteckningarna. 
+- Assesment of fit
+- Skriv om Zelterman
+- Se kommentarer i text. 
+- Skriv om till engelska.
+- Använda probit link?
+- AIC värden
+- Figurer när vi predicierar
+- Skriva att poission inte är bättre än logit (mean = var)
+- Goodness of fit test
+
 # Part B
 ### Task 4
 ```{r}
@@ -204,7 +218,11 @@ Variabeln partners beskriver antal partners som den tillfrågade har rapporterat
 
 ### Mittpunktsapproximation (begrepp vi använder?)
 
-Sedermera valde vi att ta bort de saknade värderna från vårt dataset då GLM modeller kräver observerade responsvärden. Dessutom så baseras GLM estimeringar på likelihoodfunktioner vilka kräver observerade utfall. 
+Sedermera valde vi att ta bort de saknade värderna från vårt dataset då GLM modeller kräver observerade responsvärden. Dessutom så baseras GLM estimeringar på likelihoodfunktioner vilka kräver observerade utfall. GLM-modeller kan heller inte modellera censorerad data vilket således gör att vi måste approximera intervallen för att möjliggöra likelihood estimationer. 
+
+### Kan tas bort
+Mätfel:
+I och med att vi approximerar de grupperade variablerna så tillkommer det mätfel, dessa kan vi inte udgås men för att möjliggöra GLM krävs dessa antaganden. Detta då vi dels vidhåller samma ordning i datan samt att vi förhåller oss till "top coded" problematiken. Hämtat från Wikipedia (2020-12-02, "Top-coded"): "To help overcome this problem, CPS provides the mean value of top coded values". 
 
 Vi skapar även en binär variabel "married" för att kunna undersöka om äktenskap påverkar antal partners: TRUE = gift, FALSE = ej gift. 
 
@@ -264,6 +282,9 @@ deviance(pois_1) / df.residual(pois_1) # 1.474442
 Här testar vi huruvida det finns någon overdipersion. Vi antar i en poisson fördelning att variansen är lika med medelvärdet. Kvoten mellan deviance och frihetsgraderna indikerar på att där finns overdipersion, vilket kan innebära att poissonmodellen kan underskatta variationen i data. 
 
 Overdipersion är rimligt i detta fall då vi har aproximerat samt hanterat censurerad data. Overdipersion > 1
+
+### AIC eller goodness of fit?
+### Vi saknar en modellutvärdering
 
 ### Länkfunktion 2 - Logit-modell:
 
@@ -330,6 +351,7 @@ Intercept (-1.65673): Är vårt logodds för ogifta individer som har haft fler 
 
 marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gifta. Vi transformerar detta till odds (0.039) och sedan omvandlar detta till en sannolikhet (0.0376). Här kan det konstateras att gifta individer har ca $3.76\%$ sannolikhet att ha haft fler än en partner, vilket således är mycket lägre än de ogifta individerna. Notering: I och med att koeficienten är negativ vet vi att "vara gift" minskar sannolikheten att ha haft fler än en partner, värt att nämna är att detta resultat är ytterst signifikant (p-värde: 2e-16). 
 
+### Kan tas bort (kanske skrivs längre ner.)
 Tolkning Länkfunktion 2:
 Efter modelleringen kan vi konstatera att äktenskap (att vara gift) ökar sannolikheten att ha haft minst en partner, men att ingå i ett äktenskap samtidigt minskar sannolikheten att ha flera partners. 
 
@@ -385,7 +407,6 @@ Med detta antagande delar vi upp analysen i två delar:
 Skillnaden mellan att ha minst en partner och fler än en visar således att äktenskap främst är relaterad till sannolikheten att överhuvudtaget ha en partner, snarare än till ett högre antal partners bland individer som redan haft en partner. I och med detta kan en uppdelad modellstruktur motiveras. 
 
 Detta kan kopplas till Zeltermans modell, som fokuserar på:
-
 
 
 
