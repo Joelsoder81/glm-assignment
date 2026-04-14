@@ -35,8 +35,8 @@ load(url("https://raw.githubusercontent.com/johankoskinen/ST304G/main/data/GSS20
 ```{r}
 #| output: false
 #| echo: false
-table(GSSdata24$pres20, useNA='always')
-table(GSSdata24$pres20==2, useNA='always')
+table(GSSdata24$pres20, useNA = 'always')
+table(GSSdata24$pres20 == 2, useNA = 'always')
 
 
 ```
@@ -233,7 +233,7 @@ nobs(m_big_probit)
 ```
 
 
-# Task 3 - Joel
+# Task 3
 To answer this task, we first created a new dataset where we only kept observations with complete information on the variables used in our models: sex, gun ownership, education, region, race, type of community, and income. We did this by using complete.cases(...), which checks which rows have no missing values (NA) on these variables. This step is necessary because the models cannot make predictions for individuals if some of the explanatory variables are missing.
 
 After this, we selected the individuals in this cleaned dataset who belong to the Midwest and who did not answer the question about the 2020 presidential election. In the dataset, Midwest is coded as region == 2, so we use this condition to identify that region. At the same time, we use is.na(pres20) to find the non-respondents, that is, the individuals with a missing value on the outcome variable. The symbol & is used to combine these conditions, meaning that both must be true at the same time: the person must both live in the Midwest and have a missing value on pres20.
