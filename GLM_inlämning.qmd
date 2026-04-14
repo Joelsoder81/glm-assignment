@@ -276,6 +276,7 @@ The large logit model estimates that approximately 31.6 percent of the non-respo
 
 # Part B
 ### Task 4
+The variable "partners" refers to the number of sexual partners reported by the respondent in the survey. The outcome of the variable is partially censored, some observed values are recorded as interval-censored categories. For example, the value "5" corresponds to the interval 5-10 sexual partners.
 ```{r}
 table(GSSdata24$partners , useNA = 'always')
 ```
