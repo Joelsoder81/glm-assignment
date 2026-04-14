@@ -302,11 +302,8 @@ table(GSSdata24$partners , useNA = 'always')
 ```
 Variabeln partners beskriver antal partners som den tillfrågade har rapporterat. Variabeln är delvis censorerad då vissa kategorier representerar ett intervall (ex 5 som motsvarar 5-10 i antal) snarare än ett exakt antal. För att hantera detta problem behövde vi approximera ett ungefärligt exakt värde för dessa intervall. Vi ansatte kategori 5 till 7 stycken (i antal) då detta låg nära ett "medel" i kategorin samt 12 för kategorin 11+ (ligger nära 11). Kategori 9 innebär "ospecificierat" och vi valde att sätta denna till NA (saknat värden för att inte snedvrida resultatet). 
 
-### Mittpunktsapproximation (begrepp vi använder?)
-
 Sedermera valde vi att ta bort de saknade värderna från vårt dataset då GLM modeller kräver observerade responsvärden. Dessutom så baseras GLM estimeringar på likelihoodfunktioner vilka kräver observerade utfall. GLM-modeller kan heller inte modellera censorerad data vilket således gör att vi måste approximera intervallen för att möjliggöra likelihood estimationer. 
 
-### Kan tas bort
 Mätfel:
 I och med att vi approximerar de grupperade variablerna så tillkommer det mätfel, dessa kan vi inte udgås men för att möjliggöra GLM krävs dessa antaganden. Detta då vi dels vidhåller samma ordning i datan samt att vi förhåller oss till "top coded" problematiken. Hämtat från Wikipedia (2020-12-02, "Top-coded"): "To help overcome this problem, CPS provides the mean value of top coded values". 
 
@@ -327,6 +324,7 @@ dat$married <- dat$marital == 1
 ```
 
 ### Länkfunktion 1 - Poission Log-link:
+
 Eftersom att responsvariabeln representerar antal har vi valt att använda en poisson regression med log länk. 
 
 $$log(\mu) = \beta_0 + \beta_1 * marriedTRUE$$
@@ -358,21 +356,18 @@ Intercept (b[1] = 0.11714): Detta är det logaritmerade "mu" för en ogift indiv
 
 marriedTRUE (-0.08026): Detta anger skillnaden mellan att vara ogift kontra gift. Vid transformation av detta värdet tillsammans med interceptet får vi ut ett förväntat värde på 1.0376 Sätt ur en procentuell vinkel så kan vi säga att gifta personer i genomsnitt har $8 \%$ färre förväntade partners än ogifta. (Se nedan varför vi kan göra denna tolkning)
 
-p-värde (0.0426): marriedTRUE är signifikant på 95% nivån, således kan vi med 95% säkerhet konstatera att gifta individer har färre partners. 
+p-värde (0.0426): marriedTRUE är signifikant på 95% nivån, således kan vi med 95% säkerhet konstatera att gifta individer har färre partners.
 
-Modellkontroll:
+Modellantagande Poisson:
+
+$$ Var(Y) = E(Y)$$
 ```{r}
-# Korrekt?
-deviance(pois_1) / df.residual(pois_1) # 1.474442
+mean(dat$partners_num)
+var(dat$partners_num)
 ```
-Här testar vi huruvida det finns någon overdipersion. Vi antar i en poisson fördelning att variansen är lika med medelvärdet. Kvoten mellan deviance och frihetsgraderna indikerar på att där finns overdipersion, vilket kan innebära att poissonmodellen kan underskatta variationen i data. 
+Variansen (2.7833) överstiger medelvärdet (1.0899) vilket indikerar att poissonantagandet om lika varians och medelvärde är begränsat. 
 
-Overdipersion är rimligt i detta fall då vi har aproximerat samt hanterat censurerad data. Overdipersion > 1
-
-### AIC eller goodness of fit?
-### Vi saknar en modellutvärdering
-
-### Länkfunktion 2 - Logit-modell:
+### Länkfunktion 2 - Logit-modeller:
 
 $$Odds = e^{\beta}$$
 $$Sannolikhet = \frac{Odds}{1 + Odds}$$
@@ -437,17 +432,15 @@ Intercept (-1.65673): Är vårt logodds för ogifta individer som har haft fler 
 
 marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gifta. Vi transformerar detta till odds (0.039) och sedan omvandlar detta till en sannolikhet (0.0376). Här kan det konstateras att gifta individer har ca $3.76\%$ sannolikhet att ha haft fler än en partner, vilket således är mycket lägre än de ogifta individerna. Notering: I och med att koeficienten är negativ vet vi att "vara gift" minskar sannolikheten att ha haft fler än en partner, värt att nämna är att detta resultat är ytterst signifikant (p-värde: 2e-16). 
 
-### Kan tas bort (kanske skrivs längre ner.)
-Tolkning Länkfunktion 2:
-Efter modelleringen kan vi konstatera att äktenskap (att vara gift) ökar sannolikheten att ha haft minst en partner, men att ingå i ett äktenskap samtidigt minskar sannolikheten att ha flera partners. 
-
 ### Prediktion (Hypotetisk respondent):
-Vi betraktar en hypotetisk respondent som antingen är gift eller ogift och undersöker hur modellerna predicierar antal partners (poisson) respektive sannolikheten (logit). Detta gör vi genom att skapa två hypotetiska individer (new_person) som vi sedan applicerar på våra modeller i en dataframe. Detta skapar en tabell som ger oss de önskade värderna. 
+Vi betraktar en hypotetisk manlig respondent som antingen är gift eller ogift, 35 år och undersöker hur modellerna predicierar antal partners (poisson) respektive sannolikheten (logit). Detta gör vi genom att skapa hypotetiska individer (new_person) som vi sedan applicerar på våra modeller i en dataframe. Detta skapar en tabell som ger oss de önskade värderna. Eftersom att modellerna inte bygger på ålder eller kön så kommer prediktionen enbart innefatta bakgrundsvariabeln "married". 
 
 Kommandot type = "response" transformerar modellens linjära prediktor tillbaka till dess originalskala. För poissonmodellen innebär det "förväntat antal partners", medan för logitmodellen innebär det sannolikhet. 
 
 ```{r}
-new_person <- data.frame(married = c(FALSE, TRUE))
+new_person <- data.frame(married = c(FALSE, TRUE), 
+                         age = 35, 
+                         sex = 1)
 
 data.frame(married = new_person$married, 
 # Poisson (antal)
@@ -465,8 +458,30 @@ data.frame(married = new_person$married,
 )
 
 ```
-Enligt poisson modellen förväntas en ogift individ (1.1243) rapportera något fler partners kontra en gift individ (1.0376). Logit modellen predicerar att gifta individer (0.8786) har högre sannolikhet att ha haft minst en partner jämfört med ogifta individer (0.5934). Därtill kan det konstateras att gifta individer (0.0376) har lägre sannolikhet att ha haft fler än en partner kontra en ogift individ (0.16). Data framen illustrerar tre olika aspekter utifrån den binära variablen married. 
+Enligt poisson modellen förväntas en ogift individ (1.1243) rapportera något fler partners kontra en gift individ (1.0376). Logit modellen predicerar att gifta individer (0.8786) har högre sannolikhet att ha haft minst en partner jämfört med ogifta individer (0.5934). Därtill kan det konstateras att gifta individer (0.0376) har lägre sannolikhet att ha haft fler än en partner kontra en ogift individ (0.16). Data framen illustrerar tre olika aspekter utifrån den binära variablen married.
 
+###AIC, assesment of fit mellan modellerna:
+
+För att bedöma modellernas anpassning (model of fit) använder vi Akike Information Criterion (även kallat AIC). AIC bygger på modellens maximala likelihood och straffar sedan för antalet förklaringsvariabler. 
+
+$$ AIC = 2p-2 log (L(\widehat{\beta}))$$
+```{r}
+aic_tab_2 <- AIC(pois_1, logit_any, logit_many)
+
+knitr::kable(aic_tab_2)
+```
+Tolkning AIC:
+För det första är det viktigt att belysa att modellerna inte avhandlar samma responsvariabel. Poissonmodellen modellerar antal partners och logit modellerna modellererar binära händelser såsom sannolikheten att ha haft en respektive fler än en partner. För det andra bör således AIC i detta fall inte tolkas som en direkt jämförelse mellan modellerna utan snarare som ett mått på hur väl de enskilda modellerna beskriver den enskilda responsen. 
+
+De låga AIC värderna för logit modellerna påvisar att variationen i partnerskap bättre förstås som diskreta steg snarare än som en enskild poissonprocess. Resultatet kan således vara till grund för en tolkning där partnerskap modellereras i två steg:
+
+i) Sannolikheten att ha haft minst en partner, och
+
+ii) givet minst en partner, vad är sannolikheten att ha fler än en partner. 
+
+Sammantaget visar AIC resultaten att äktenskap främst avser sannolikheten att ha en partner och minskar sannolikheten att ha fler en än partner, snarare än att avse hur många partners man har. 
+
+### Barplot över antal partners:
 ```{r}
 #| fig-width: 5
 #| fig-height: 3
@@ -484,12 +499,11 @@ barplot(table(dat$partners_num),
 
 Fördelningen av antal partners är högerskev, där många tillfrågade rapporterat låga värden och få höga värden. Detta innebär att att sambandet mellan äktenskap och antalet partners inte är homogent över hela fördelningen. Denna analys blir däremot lite tvetydig då viss del av datan är censurerad. Vi antar däremot en högerskev fördelning. 
 
-Med detta antagande delar vi upp analysen i två delar: 
-1) Sannolikheten att ha haft minst en partner, och
+Med detta i åtanke samt AIC utvärderingen så vidhåller vi den mer effektiva uppdelningen i) och ii). 
 
-2) givet minst en partner, vad är sannolikheten att ha fler än en partner. 
+Skillnaden mellan att ha minst en partner och fler än en visar således att äktenskap främst är relaterad till sannolikheten att överhuvudtaget ha en partner, snarare än till ett högre antal partners bland individer som redan haft en partner. I och med detta kan en uppdelad modellstruktur motiveras ytterliggare. 
 
-Skillnaden mellan att ha minst en partner och fler än en visar således att äktenskap främst är relaterad till sannolikheten att överhuvudtaget ha en partner, snarare än till ett högre antal partners bland individer som redan haft en partner. I och med detta kan en uppdelad modellstruktur motiveras. 
+### Zelterman:
 
 Detta kan kopplas till Zeltermans modell, som fokuserar på:
 
