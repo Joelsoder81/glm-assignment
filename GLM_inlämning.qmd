@@ -310,17 +310,17 @@ I och med att vi approximerar de grupperade variablerna så tillkommer det mätf
 Vi skapar även en binär variabel "married" för att kunna undersöka om äktenskap påverkar antal partners: TRUE = gift, FALSE = ej gift. 
 
 ```{r}
-dat <- GSSdata24
-dat$partners_num <- dat$partners
+dat_24 <- GSSdata24
+dat_24$partners_num <- dat_24$partners
 
-dat$partners_num[dat$partners == 5] <- 7
-dat$partners_num[dat$partners == 6] <- 12
-dat$partners_num[dat$partners == 9] <- NA
+dat_24$partners_num[dat_24$partners == 5] <- 7
+dat_24$partners_num[dat_24$partners == 6] <- 12
+dat_24$partners_num[dat_24$partners == 9] <- NA
 
 # Kanske lite längre förklaring till denna kod-del. 
-dat <- subset(dat, !is.na(partners_num))
+dat_24 <- subset(dat_24, !is.na(partners_num))
 
-dat$married <- dat$marital == 1
+dat_24$married <- dat_24$marital == 1
 ```
 
 ### Länkfunktion 1 - Poission Log-link:
@@ -334,7 +334,7 @@ Alltså, vi modellerar förväntat antal partners.
 ```{r}
 pois_1 <- glm(partners_num ~ married,
               family = poisson(link = "log"),
-              data = dat
+              data = dat_24
 )
 
 summary(pois_1)
@@ -362,10 +362,10 @@ Modellantagande Poisson:
 
 $$ Var(Y) = E(Y)$$
 ```{r}
-mean(dat$partners_num)
-var(dat$partners_num)
+mean(dat_24$partners_num)
+var(dat_24$partners_num)
 ```
-Variansen (2.7833) överstiger medelvärdet (1.0899) vilket indikerar att poissonantagandet om lika varians och medelvärde är begränsat. 
+Variansen (2.7833) överstiger medelvärdet (1.0899) vilket indikerar att poissonantagandet om lika varians och medelvärde är begränsat, detta kallas för overdispersion. Konsekvensen av detta är att standardfelet för våra koefficienter högst troligt är underskattatade. Här hade det möjligtvis varit mer lämpligt med en negativ binomial modell som tillåter att detta antagande inte hålls. 
 
 ### Länkfunktion 2 - Logit-modeller:
 
@@ -377,16 +377,16 @@ Vi skapar 2 stycken binära variabler:
 
 - Fler än en partner (many_partners)
 ```{r}
-dat$any_partner <- dat$partners_num > 0
+dat_24$any_partner <- dat_24$partners_num > 0
 
-dat$many_partners <- dat$partners_num > 1
+dat_24$many_partners <- dat_24$partners_num > 1
 ```
 
 ```{r}
 # Logit modell - minst en partner:
 logit_any <- glm(any_partner ~ married, 
                  family = binomial(link = "logit"), 
-                 data = dat
+                 data = dat_24
                  )
 summary(logit_any)
 
@@ -411,7 +411,7 @@ marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gi
 # Logit modell - fler än en partner:
 logit_many <- glm(many_partners ~ married, 
                  family = binomial(link = "logit"), 
-                 data = dat
+                 data = dat_24
                  )
 summary(logit_many)
 
@@ -481,6 +481,14 @@ ii) givet minst en partner, vad är sannolikheten att ha fler än en partner.
 
 Sammantaget visar AIC resultaten att äktenskap främst avser sannolikheten att ha en partner och minskar sannolikheten att ha fler en än partner, snarare än att avse hur många partners man har. 
 
+### Deviance poisson, test med goodness of fit:
+```{r}
+p_god_test <- 1 - pchisq(pois_1$deviance, df = pois_1$df.residual)
+
+p_god_test
+```
+
+
 ### Barplot över antal partners:
 ```{r}
 #| fig-width: 5
@@ -489,7 +497,7 @@ Sammantaget visar AIC resultaten att äktenskap främst avser sannolikheten att 
 #| fig-align: center
 #| echo: false
 
-barplot(table(dat$partners_num), 
+barplot(table(dat_24$partners_num), 
      main = "Fördelning över # partners_num", 
      xlab = "Antal partners", 
      ylab = "frekvens", 
@@ -506,8 +514,6 @@ Skillnaden mellan att ha minst en partner och fler än en visar således att äk
 ### Zelterman:
 
 Detta kan kopplas till Zeltermans modell, som fokuserar på:
-
-
 
 
 
