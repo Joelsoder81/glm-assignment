@@ -282,8 +282,6 @@ table(GSSdata24$partners , useNA = 'always')
 ```
 The issue of partially censored outcomes is handled in different ways. The value “5”, which represents the interval 5–10, is set to 7 as it corresponds approximately to the midpoint of the interval. The value “6”, which represents the open-ended interval 11+, is set to 12 as a conservative approximation. The value “9” is treated as NA, as no reasonable numerical approximation can be made without introducing strong arbitrary assumptions.
 
-Variabeln partners beskriver antal partners som den tillfrågade har rapporterat. Variabeln är delvis censorerad då vissa kategorier representerar ett intervall (ex 5 som motsvarar 5-10 i antal) snarare än ett exakt antal. 
-
 Sedermera valde vi att ta bort de saknade värderna från vårt dataset då GLM modeller kräver observerade responsvärden. Dessutom så baseras GLM estimeringar på likelihoodfunktioner vilka kräver observerade utfall. GLM-modeller kan heller inte modellera censorerad data vilket således gör att vi måste approximera intervallen för att möjliggöra likelihood estimationer. 
 
 Mätfel:
