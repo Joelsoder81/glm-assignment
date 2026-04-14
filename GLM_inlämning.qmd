@@ -54,9 +54,9 @@ We used AI in a limited way to help format the output in the report, mainly by s
 ```{r}
 #| echo: false
 #| 
-model_24 <- glm( pres20==2 ~ 
-                   I(sex==2) + 
-                   I(owngun==1) +
+model_24 <- glm(pres20 == 2 ~ 
+                   I(sex == 2) + 
+                   I(owngun == 1) +
                    I(degree %in% c(4,5)), 
                  data = GSSdata24,
                  family = "binomial")
