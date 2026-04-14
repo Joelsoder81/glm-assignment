@@ -49,8 +49,6 @@ Throughout the report, we compare different model specifications and link functi
 We used AI in a limited way to help format the output in the report, mainly by suggesting how to use knitr::kable() and similar commands to present summary() and anova() results more clearly. 
 
 # Task 1
-::: {.columns}
-::: {.column width="50%"}
 ```{r}
 #| echo: false
 #| 
@@ -90,18 +88,24 @@ vars_needed <- c("pres20", "sex", "owngun", "degree")
 GSSdata22_sub <- GSSdata22[, vars_needed]
 GSSdata24_sub <- GSSdata24[, vars_needed]
 
-GSSdata22_sub$year <- 2022
-GSSdata24_sub$year <- 2024
+GSSdata22_sub$year2024 <- 0
+GSSdata24_sub$year2024 <- 1
 
 GSSdata <- rbind(GSSdata22_sub, GSSdata24_sub)
 
 model <- glm(
-  I(pres20 == 2) ~ .,
+  I(pres20 == 2) ~
+    I(sex == 2) +
+    I(owngun == 1) +
+    I(degree %in% c(4, 5)) +
+    year2024 +
+    I(sex == 2):year2024,
   data = GSSdata,
   family = binomial
 )
 
 knitr::kable(summary(model)$coefficients, digits = 3)
+
 ```
 The p-value for the interaction term is 0.787. Since this p-value is large, there is no statistical evidence that the association between being female and voting for Trump changed between the two years. Therefore, we cannot reject the null hypothesis that the effect of being female is the same in 2022 and 2024. 
 
@@ -192,7 +196,6 @@ The large probit model also shows a pattern similar to the large logit model. Th
 
 
 ### ANOVA: Small vs Large Logit Model
-::: {.columns}
 ```{r}
 #| echo: false
 knitr::kable(as.data.frame(anova(m_small_logit, m_big_logit, test = "Chisq")), 
@@ -229,7 +232,8 @@ nobs(m_small_probit)
 nobs(m_big_probit)
 ```
 
-# Task 3 
+
+# Task 3 - Joel
 To answer this task, we first created a new dataset where we only kept observations with complete information on the variables used in our models: sex, gun ownership, education, region, race, type of community, and income. We did this by using complete.cases(...), which checks which rows have no missing values (NA) on these variables. This step is necessary because the models cannot make predictions for individuals if some of the explanatory variables are missing.
 
 After this, we selected the individuals in this cleaned dataset who belong to the Midwest and who did not answer the question about the 2020 presidential election. In the dataset, Midwest is coded as region == 2, so we use this condition to identify that region. At the same time, we use is.na(pres20) to find the non-respondents, that is, the individuals with a missing value on the outcome variable. The symbol & is used to combine these conditions, meaning that both must be true at the same time: the person must both live in the Midwest and have a missing value on pres20.
