@@ -32,14 +32,6 @@ load(url("https://raw.githubusercontent.com/johankoskinen/ST304G/main/data/GSS20
 load(url("https://raw.githubusercontent.com/johankoskinen/ST304G/main/data/GSS2024selection.RData"))
 ```
 
-```{r}
-#| output: false
-#| echo: false
-table(GSSdata24$pres20, useNA = 'always')
-table(GSSdata24$pres20 == 2, useNA = 'always')
-
-
-```
 # Introduction
 This report analyzes data from the General Social Survey (GSS) using generalized linear models. In Part A, we study which factors are associated with voting for Donald Trump in the 2020 presidential election, using data from the 2022 and 2024 surveys. In Part B, we examine the reported number of sexual partners and discuss suitable models for this type of outcome.
 
