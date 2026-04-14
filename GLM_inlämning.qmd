@@ -260,20 +260,6 @@ The large logit model estimates that approximately 31.6 percent of the non-respo
 
 
 
-Part B Kommentarer
-- Saknar odds ratio
-- Deviation korrekt?
-- Mer latex som stämmer överrens med frl anteckningarna. 
-- Assesment of fit
-- Skriv om Zelterman
-- Se kommentarer i text. 
-- Skriv om till engelska.
-- Använda probit link?
-- AIC värden
-- Figurer när vi predicierar
-- Skriva att poission inte är bättre än logit (mean = var)
-- Goodness of fit test
-
 # Part B
 ### Task 4
 ```{r}
@@ -335,7 +321,7 @@ Intercept (b[1] = 0.11714): Detta är det logaritmerade "mu" för en ogift indiv
 
 marriedTRUE (-0.08026): Detta anger skillnaden mellan att vara ogift kontra gift. Vid transformation av detta värdet tillsammans med interceptet får vi ut ett förväntat värde på 1.0376 Sätt ur en procentuell vinkel så kan vi säga att gifta personer i genomsnitt har $8 \%$ färre förväntade partners än ogifta. (Se nedan varför vi kan göra denna tolkning)
 
-p-värde (0.0426): marriedTRUE är signifikant på 95% nivån, således kan vi med 95% säkerhet konstatera att gifta individer har färre partners.
+p-värde (0.0426): marriedTRUE är signifikant på en 95% nivå, således kan vi med 95% säkerhet konstatera att gifta individer har färre partners.
 
 Modellantagande Poisson:
 
@@ -367,7 +353,7 @@ logit_any <- glm(any_partner ~ married,
                  family = binomial(link = "logit"), 
                  data = dat_24
                  )
-summary(logit_any)
+knitr::kable(summary(logit_any)$coefficients)
 
 b_2 <- coef(logit_any)
 
@@ -392,7 +378,7 @@ logit_many <- glm(many_partners ~ married,
                  family = binomial(link = "logit"), 
                  data = dat_24
                  )
-summary(logit_many)
+knitr::kable(summary(logit_many)$coefficients)
 
 b_3 <- coef(logit_many)
 
@@ -409,10 +395,38 @@ Tolkning av koefficienter:
 
 Intercept (-1.65673): Är vårt logodds för ogifta individer som har haft fler än en partner. Vid transformation av detta får vi ut oddset som uppgick till 0.19076. Sedermera omvandlar vi detta till en sannolikhet som säger oss att ogifta personer har ca $16 \%$ sannolikhet att ha haft fler än en partner.
 
-marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gifta. Vi transformerar detta till odds (0.039) och sedan omvandlar detta till en sannolikhet (0.0376). Här kan det konstateras att gifta individer har ca $3.76\%$ sannolikhet att ha haft fler än en partner, vilket således är mycket lägre än de ogifta individerna. Notering: I och med att koeficienten är negativ vet vi att "vara gift" minskar sannolikheten att ha haft fler än en partner, värt att nämna är att detta resultat är ytterst signifikant (p-värde: 2e-16). 
+marriedTRUE: Är förändringen i logodds mellan individer som är ogifta och gifta. Vi transformerar detta till odds (0.039) och sedan omvandlar detta till en sannolikhet (0.0376). Här kan det konstateras att gifta individer har ca $3.76\%$ sannolikhet att ha haft fler än en partner, vilket således är mycket lägre än de ogifta individerna. Notering: I och med att koeficienten är negativ vet vi att "vara gift" minskar sannolikheten att ha haft fler än en partner, värt att nämna är att detta resultat är ytterst signifikant (p-värde: 2e-16 ≈ 0). 
+
+### Länkfunktion 3 - Probit, samt jämförelse med logit
+```{r}
+#| echo: false
+probit_any <- glm(any_partner ~ married, 
+                  family = binomial(link = "probit"),
+                  data = dat_24
+                  )
+
+probit_many <- glm(many_partners ~ married, 
+                  family = binomial(link = "probit"),
+                  data = dat_24
+                  )
+knitr::kable(summary(probit_any)$coefficients,
+             caption = "Probit any")
+knitr::kable(summary(logit_any)$coefficients,
+             caption = "Logit any")
+
+knitr::kable(summary(probit_many)$coefficients,
+             caption = "Probit many")
+knitr::kable(summary(logit_many)$coefficients,
+             caption = "Logit many")
+
+```
+
+Resultat:
+
+Resultatet från probit modellerna bekräftar de tidigare logit analyserna och påvisar att slutsatserna är rimliga med avseende på valet av länkfunktion för de binära responserna (logit, probit). Både logit och probit ger samma tecken (+ respektive - för coeffisienterna) och lika signifikansnivåer. Äktenskap ökar sannolikheten att ha minst en partner, men minskar sannolikheten att ha fler än en partner. Med detta kan vi konstatera att det finns ett mönster i datan och att dessa "två stegs" modeller inte är beroende av en specifik matematisk formel. 
 
 ### Prediktion (Hypotetisk respondent):
-Vi betraktar en hypotetisk manlig respondent som antingen är gift eller ogift, 35 år och undersöker hur modellerna predicierar antal partners (poisson) respektive sannolikheten (logit). Detta gör vi genom att skapa hypotetiska individer (new_person) som vi sedan applicerar på våra modeller i en dataframe. Detta skapar en tabell som ger oss de önskade värderna. Eftersom att modellerna inte bygger på ålder eller kön så kommer prediktionen enbart innefatta bakgrundsvariabeln "married". 
+Vi betraktar en hypotetisk manlig respondent som antingen är gift eller ogift, 35 år och undersöker hur modellerna predicierar antal partners (poisson) respektive sannolikheten (logit, probit). Detta gör vi genom att skapa hypotetiska individer (new_person) som vi sedan applicerar på våra modeller i en dataframe. Detta skapar en tabell som ger oss de önskade värderna. Eftersom att modellerna inte bygger på ålder eller kön så kommer prediktionen enbart innefatta bakgrundsvariabeln "married". 
 
 Kommandot type = "response" transformerar modellens linjära prediktor tillbaka till dess originalskala. För poissonmodellen innebär det "förväntat antal partners", medan för logitmodellen innebär det sannolikhet. 
 
@@ -423,21 +437,29 @@ new_person <- data.frame(married = c(FALSE, TRUE),
 
 data.frame(married = new_person$married, 
 # Poisson (antal)
-        antal_partners = predict(pois_1, 
+        pois_count = predict(pois_1, 
         newdata = new_person, 
         type = "response"),
-# Logit (Sannolikhet) > 0
-        prob_any_partner = predict(logit_any,
+# Logit (any)
+        logit_any = predict(logit_any,
         newdata = new_person,
         type = "response"), 
-# Logit (sannolikhet) > 1
-        prob_many_partners = predict(logit_many,
+# Logit (many)
+        logit_many = predict(logit_many,
+        newdata = new_person,
+        type = "response"), 
+# Probit (any)
+        probit_any = predict(probit_any,
+        newdata = new_person,
+        type = "response"), 
+# Probit (many)
+        probit_many = predict(probit_many,
         newdata = new_person,
         type = "response")
 )
 
 ```
-Enligt poisson modellen förväntas en ogift individ (1.1243) rapportera något fler partners kontra en gift individ (1.0376). Logit modellen predicerar att gifta individer (0.8786) har högre sannolikhet att ha haft minst en partner jämfört med ogifta individer (0.5934). Därtill kan det konstateras att gifta individer (0.0376) har lägre sannolikhet att ha haft fler än en partner kontra en ogift individ (0.16). Data framen illustrerar tre olika aspekter utifrån den binära variablen married.
+Enligt poisson modellen förväntas en ogift individ (1.1243) rapportera något fler partners kontra en gift individ (1.0376). Logit och probit modellerna predicerar att gifta individer (0.8786) har högre sannolikhet att ha haft minst en partner jämfört med ogifta individer (0.5934). Därtill kan det konstateras att gifta individer (0.0376) har lägre sannolikhet att ha haft fler än en partner kontra en ogift individ (0.16). Data framen illustrerar fem olika aspekter utifrån den binära variablen married.
 
 ###AIC, assesment of fit mellan modellerna:
 
@@ -445,14 +467,14 @@ För att bedöma modellernas anpassning (model of fit) använder vi Akike Inform
 
 $$ AIC = 2p-2 log (L(\widehat{\beta}))$$
 ```{r}
-aic_tab_2 <- AIC(pois_1, logit_any, logit_many)
+aic_tab_2 <- AIC(pois_1, logit_any, logit_many, probit_any, probit_many)
 
-knitr::kable(aic_tab_2)
+knitr::kable(aic_tab_2, caption = "AIC Tabell")
 ```
 Tolkning AIC:
-För det första är det viktigt att belysa att modellerna inte avhandlar samma responsvariabel. Poissonmodellen modellerar antal partners och logit modellerna modellererar binära händelser såsom sannolikheten att ha haft en respektive fler än en partner. För det andra bör således AIC i detta fall inte tolkas som en direkt jämförelse mellan modellerna utan snarare som ett mått på hur väl de enskilda modellerna beskriver den enskilda responsen. 
+För det första är det viktigt att belysa att modellerna inte avhandlar samma responsvariabel. Poissonmodellen modellerar antal partners och logit/probit modellerna modellererar binära händelser såsom sannolikheten att ha haft en respektive fler än en partner. För det andra bör således AIC i detta fall inte tolkas som en direkt jämförelse mellan modellerna utan snarare som ett mått på hur väl de enskilda modellerna beskriver den enskilda responsen. 
 
-De låga AIC värderna för logit modellerna påvisar att variationen i partnerskap bättre förstås som diskreta steg snarare än som en enskild poissonprocess. Resultatet kan således vara till grund för en tolkning där partnerskap modellereras i två steg:
+De låga AIC värderna för logit och probit modellerna påvisar att variationen i partnerskap bättre förstås som diskreta steg snarare än som en enskild poissonprocess. Resultatet kan således vara till grund för en tolkning där partnerskap modellereras i två steg:
 
 i) Sannolikheten att ha haft minst en partner, och
 
@@ -462,11 +484,13 @@ Sammantaget visar AIC resultaten att äktenskap främst avser sannolikheten att 
 
 ### Deviance poisson, test med goodness of fit:
 ```{r}
-p_god_test <- 1 - pchisq(pois_1$deviance, df = pois_1$df.residual)
+p_god_test <- pchisq(deviance(pois_1), 
+                     df.residual(pois_1),
+                     lower = FALSE)
 
 p_god_test
 ```
-
+Ett p-värde väldigt nära 0 innebär att poissonmodellen har en betydande del overdispersion i datan. Detta motiverar ytterliggare en flerstegs modell (logit) och att poisson modellen bör undvikas. Vi förkastar nollhypotesen på signifikansnivå 0.01 och konstaterar att modellen inte passar datan bra. 
 
 ### Barplot över antal partners:
 ```{r}
@@ -486,14 +510,13 @@ barplot(table(dat_24$partners_num),
 
 Fördelningen av antal partners är högerskev, där många tillfrågade rapporterat låga värden och få höga värden. Detta innebär att att sambandet mellan äktenskap och antalet partners inte är homogent över hela fördelningen. Denna analys blir däremot lite tvetydig då viss del av datan är censurerad. Vi antar däremot en högerskev fördelning. 
 
-Med detta i åtanke samt AIC utvärderingen så vidhåller vi den mer effektiva uppdelningen i) och ii). 
+Med detta i åtanke samt AIC utvärderingen och goodness of fit testet så vidhåller vi den mer effektiva uppdelningen i) och ii). 
 
 Skillnaden mellan att ha minst en partner och fler än en visar således att äktenskap främst är relaterad till sannolikheten att överhuvudtaget ha en partner, snarare än till ett högre antal partners bland individer som redan haft en partner. I och med detta kan en uppdelad modellstruktur motiveras ytterliggare. 
 
 ### Zelterman:
 
 Detta kan kopplas till Zeltermans modell, som fokuserar på:
-
 
 
 
