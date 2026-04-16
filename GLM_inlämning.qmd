@@ -275,6 +275,8 @@ The large logit model estimates that approximately 31.6 percent of the non-respo
 
 
 # Task 4
+
+
 ```{r}
 #| echo: false
 #| output: false
@@ -339,10 +341,8 @@ knitr::kable(summary(pois_1)$coefficients,
 
 b <- coef(pois_1)
 
-# Förväntat antal partners för en ogift person
 mu_unmarried <- exp(b[1]) # = 1.124277
 
-# Förväntat antal partners vid gift
 mu_married <- exp(b[1] + b[2]) # = 1.037569
 
 odds_ratio_b1 <- exp(b[2])
@@ -508,7 +508,7 @@ knitr::kable(summary(probit_any)$coefficients,
              caption = "Probit model - at least one partner")
 
 knitr::kable(summary(probit_many)$coefficients,
-             caption = "Probit - more than one partner")
+             caption = "Probit model - more than one partner")
 
 prob_any_unmarried_probit <- pnorm(probit_any$coefficients[1])
 prob_any_married_probit <- pnorm(probit_any$coefficients[1] + 
@@ -553,13 +553,13 @@ aic_tab_2 <- AIC(logit_any, logit_many, probit_any, probit_many)
 knitr::kable(aic_tab_2, caption = "AIC Table")
 ```
 ### Interpretation - AIC:
-As seen in the table, the Logic and Probit models have the exact same AIC values in both stages. Since these models use the same binary data/outcome (in each stage), it shows that it does not matter which model we choose. Because of the same results, it confirms and make our findings more reliable. 
+As shown in the table, the logit and probit models have identical or nearly identical AIC values within each binary outcome. This suggests that the results are not sensitive to the choice between logit and probit. In other words, the main conclusion remain the same regardless of which of these two link-functions is used. 
 
 The AIC values between `any partner` (2652.328) and `many partners` (1561.441) are different and may be due to that the second stage (more than one partner) looks at a smaller, and more specific group of individuals (those whom already have at least one partner). The AIC results also shows that our two step method is a good choice, and by splitting the analysis into two steps we can better understand:
 
 i) The probability of having at least one partner, and
 
-ii) given at least one partner, the probability of having more than one partner.  
+ii) The probability of having more than one partner.  
 
 ### Prediction For a Hypothetical Respondent:
 To provide a clear prediction, we analyze a hypothetical individual under two conditions, unmarried and married, using both Logit and Probit link functions. The results, seen in table 23, are transformed into probabilities using the command (type = "response"). 
@@ -601,9 +601,6 @@ For the first stage of the analysis, the models predict a 0.5934 probability for
 Overall the results show that marriage is primary related to the probability of having a partner and decreasing the probability of having more than one partner, rather than determining the exact number of partners an individual has. 
 
 ### Zelterman:
-Write here:
-
-
-
+This can be related to the general idea behind Zeltermans reasoning, where the distinction between zero counts and positive counts may reflect the different underlying processes. In our case, the difference between having no partners, having at least one partner and having more than one partner appears to be important. Our approach is not a full Zelterman model, but it follows a similar intuition by separating different parts of the response rather than stimulating everything in one single count model.  
 
 
