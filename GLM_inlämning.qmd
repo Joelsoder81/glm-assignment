@@ -393,7 +393,7 @@ cat("Goodness of fit - p-value:", p_god_test)
 
 ```
 ### Interpretation - Goodness Of Fit test:
-The test returned a p-value of $8.967 \cdot 10^{-48}$. Since this value is far below any standard significance level (p > 0.001) we reject the null hypothesis. This result conduct that there is overdispersion in the data, meaning the variation in the number of partners is significantly greater than the Poisson model can predict. Because of this, the Poisson model is best viewed as a "starting model" rather than a perfect fit for the data. The result suggest a reason to use a two stage approach instead. By splitting the analysis into two steps, we can better capture the different behaviors in data that a single poisson model might miss out. 
+The test returned a p-value of $8.967 \cdot 10^{-48}$. Since this value is far below any standard significance level (p > 0.001) we reject the null hypothesis. This result conduct that there is overdispersion in the data, meaning the variation in the number of partners is significantly greater than the Poisson model can predict. Because of this, the Poisson model is best viewed as a "starting model" rather than a perfect fit for the data. The result may suggest a reason to use a two stage approach instead. By splitting the analysis into two steps, we can better capture the different behaviors in data that a single poisson model might miss out. 
 
 ## Model 2 - Binary Models (logit-Link):
 
@@ -489,7 +489,7 @@ The p-value for both the intercept and the marriage coefficient are small (p < 0
 
 These models show a clear two way pattern. Marriage at first sight substantially increases the chance of having a partner ($59 \%$ to $88 \%$). However, marriage then substantially decreasing the chance of having multiple partners ($16 \%$ to $3.8 \%$). 
  
-# Model 3 - Binary model (Probit link):
+## Model 3 - Binary model (Probit link):
 
 To make sure the results are reliable, we compare the Logic models with the Probit models (Tables 15, 17 with 19 and 20). While they use different formulas, they are both used to analyse binary data. Probit:
 $$\phi^{-1}(p) = \beta_0 + \beta_1 \cdot married = \eta$$
@@ -544,7 +544,7 @@ Intercept (-0.9936): Represents the Z-score for a unmarried individual. It corre
 The coefficient `marriedTrue` (-0.786) is negative and highly significant (p < 0.001). It shows that being married decreases the Z-score by 0.79 standard deviations. If being married, drops the probability of having multiple partners from $16 \%$ to $3.8 \%$, witch again align with the Logit model. 
 
 ### AIC - Assesment of fit Logit/Probit:
-To check how well our models work, we use the AIC. AIC measures the balance between a models accuracy and its complexity, which means that its balances the likelihood and penalizing for unnecessary parameters (p). A lower AIC value means the model is more efficient. 
+To check how well our models work, we use the AIC. AIC measures the balance between a models accuracy and its complexity, which means that its balances the likelihood and penalizing for unnecessary parameters (p). A lower AIC value means the model is more efficient. Since AIC is most meaningful when models are fitted to the same response variable, we will only compare the logit and probit models within each stage of the analysis. 
 $$ AIC = 2p-2 log (L(\widehat{\beta}))$$
 ```{r}
 #| echo: false
@@ -553,7 +553,7 @@ aic_tab_2 <- AIC(logit_any, logit_many, probit_any, probit_many)
 knitr::kable(aic_tab_2, caption = "AIC Table")
 ```
 ### Interpretation - AIC:
-As seen in the table, the Logic and Probit models have the exact same AIC values in both stages. Since these models use the same binary data/outcome, it shows that it does not matter which model we choose. Because of the same results, it confirms and make our findings more reliable. 
+As seen in the table, the Logic and Probit models have the exact same AIC values in both stages. Since these models use the same binary data/outcome (in each stage), it shows that it does not matter which model we choose. Because of the same results, it confirms and make our findings more reliable. 
 
 The AIC values between `any partner` (2652.328) and `many partners` (1561.441) are different and may be due to that the second stage (more than one partner) looks at a smaller, and more specific group of individuals (those whom already have at least one partner). The AIC results also shows that our two step method is a good choice, and by splitting the analysis into two steps we can better understand:
 
@@ -561,19 +561,14 @@ i) The probability of having at least one partner, and
 
 ii) given at least one partner, the probability of having more than one partner.  
 
-Overall the AIC results shows that marriage is primary related to the probability of having a partner and decreasing the probability of having more than one partner, rather than determining the exact number of partners an individual has. 
-
-
-
-### Prediktion (Hypotetisk respondent):
-Vi betraktar en hypotetisk respondent som antingen är gift eller ogift och undersöker hur modellerna predicierar antal partners (poisson) respektive sannolikheten (logit, probit). Detta gör vi genom att skapa hypotetiska individer (new_person) som vi sedan applicerar på våra modeller i en dataframe. Detta skapar en tabell som ger oss de önskade värderna.  
-
-Kommandot type = "response" transformerar modellens linjära prediktor tillbaka till dess originalskala. För poissonmodellen innebär det "förväntat antal partners", medan för logitmodellen innebär det sannolikhet. 
+### Prediction For a Hypothetical Respondent:
+To provide a clear prediction, we analyze a hypothetical individual under two conditions, unmarried and married, using both Logit and Probit link functions. The results, seen in table 23, are transformed into probabilities using the command (type = "response"). 
 
 ```{r}
+#| echo: false
 new_person <- data.frame(married = c(FALSE, TRUE))
 
-data.frame(married = new_person$married, 
+pred_table <- data.frame(married = new_person$married, 
 # Poisson (antal)
         pois_count = predict(pois_1, 
         newdata = new_person, 
@@ -595,37 +590,18 @@ data.frame(married = new_person$married,
         newdata = new_person,
         type = "response")
 )
+knitr::kable(pred_table, 
+             caption = "Predicted Outcomes (response)")
 
 ```
-Enligt poisson modellen förväntas en ogift individ (1.1243) rapportera något fler partners kontra en gift individ (1.0376). Logit och probit modellerna predicerar att gifta individer (0.8786) har högre sannolikhet att ha haft minst en partner jämfört med ogifta individer (0.5934). Därtill kan det konstateras att gifta individer (0.0376) har lägre sannolikhet att ha haft fler än en partner kontra en ogift individ (0.16). Data framen illustrerar fem olika aspekter utifrån den binära variablen married.
+The Poisson model predicts a slightly higher expected count of partners for unmarried individuals (1.1243) compared to married individuals (1.038). However the two steps binary models reveal a more detail analysis. 
 
+For the first stage of the analysis, the models predict a 0.5934 probability for an unmarried person to have at least one partner, compared to a significantly higher probability of 0.8786 for a married person. In the second stage, which is based on already having at least one partner, the probability of having multiple partners drops from 0.16 for an unmarried person to 0.038 for those who are married. 
 
-### Barplot över antal partners: Onödigt?
-```{r}
-#| fig-width: 5
-#| fig-height: 3
-#| out-width: "50%"
-#| fig-align: center
-#| echo: false
-
-barplot(table(dat_24$partners_num), 
-     main = "Fördelning över # partners_num", 
-     xlab = "Antal partners", 
-     ylab = "frekvens", 
-     col = "lightblue"
-     )
-```
-
-Fördelningen av antal partners är högerskev, där många tillfrågade rapporterat låga värden och få höga värden. Detta innebär att att sambandet mellan äktenskap och antalet partners inte är homogent över hela fördelningen. Denna analys blir däremot lite tvetydig då viss del av datan är censurerad. Vi antar däremot en högerskev fördelning. 
-
-Med detta i åtanke samt AIC utvärderingen och goodness of fit testet så vidhåller vi den mer effektiva uppdelade modellen i) och ii). 
-
-Skillnaden mellan att ha minst en partner och fler än en visar således att äktenskap främst är relaterad till sannolikheten att överhuvudtaget ha en partner, snarare än till ett högre antal partners bland individer som redan haft en partner. I och med detta kan en uppdelad modellstruktur motiveras ytterliggare. 
+Overall the results show that marriage is primary related to the probability of having a partner and decreasing the probability of having more than one partner, rather than determining the exact number of partners an individual has. 
 
 ### Zelterman:
-
-Detta kan kopplas till Zeltermans modell, som fokuserar på:
-
+Write here:
 
 
 
