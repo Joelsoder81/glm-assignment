@@ -275,7 +275,13 @@ The large logit model estimates that approximately 31.6 percent of the non-respo
 
 
 # Task 4
-
+Saknas:
+- Evaluate the censoring of data. 
+- Goodness of fit testet behöver nödvändigtvis inte vara överdepresion?
+- Kolla igenom språket
+- Se till att many_partners matchar modellerna
+- Längre text om Zelterman - Se till att den är korrekt?
+- Kolla mallformatering så att allt stämmer. 
 
 ```{r}
 #| echo: false
@@ -393,7 +399,7 @@ cat("Goodness of fit - p-value:", p_god_test)
 
 ```
 ### Interpretation - Goodness Of Fit test:
-The test returned a p-value of $8.967 \cdot 10^{-48}$. Since this value is far below any standard significance level (p > 0.001) we reject the null hypothesis. This result conduct that there is overdispersion in the data, meaning the variation in the number of partners is significantly greater than the Poisson model can predict. Because of this, the Poisson model is best viewed as a "starting model" rather than a perfect fit for the data. The result may suggest a reason to use a two stage approach instead. By splitting the analysis into two steps, we can better capture the different behaviors in data that a single poisson model might miss out. 
+The test returned a p-value of $8.967 \cdot 10^{-48}$. Since this value is far below any standard significance level (p > 0.001) we reject the null hypothesis. This result conduct that there is overdispersion in the data, meaning the variation in the number of partners is significantly greater than the Poisson model can predict. Because of this, the Poisson model is best viewed as a "starting model" rather than a perfect fit for the data. The result may suggest a reason to use alternative models instead. By splitting the analysis into two steps, we can better capture the different behaviors in data that a single poisson model might miss out. 
 
 ## Model 2 - Binary Models (logit-Link):
 
@@ -555,7 +561,7 @@ knitr::kable(aic_tab_2, caption = "AIC Table")
 ### Interpretation - AIC:
 As shown in the table, the logit and probit models have identical or nearly identical AIC values within each binary outcome. This suggests that the results are not sensitive to the choice between logit and probit. In other words, the main conclusion remain the same regardless of which of these two link-functions is used. 
 
-The AIC values between `any partner` (2652.328) and `many partners` (1561.441) are different and may be due to that the second stage (more than one partner) looks at a smaller, and more specific group of individuals (those whom already have at least one partner). The AIC results also shows that our two step method is a good choice, and by splitting the analysis into two steps we can better understand:
+The AIC values between `any partner` (2652.328) and `many partners` (1561.441) are different and may be due to that the second stage (more than one partner) looks at a smaller, and more specific group of individuals (those whom already have at least one partner). The AIC results also shows that our two step method may be a good choice, and by splitting the analysis into two steps we can better understand:
 
 i) The probability of having at least one partner, and
 
@@ -596,11 +602,9 @@ knitr::kable(pred_table,
 ```
 The Poisson model predicts a slightly higher expected count of partners for unmarried individuals (1.1243) compared to married individuals (1.038). However the two steps binary models reveal a more detail analysis. 
 
-For the first stage of the analysis, the models predict a 0.5934 probability for an unmarried person to have at least one partner, compared to a significantly higher probability of 0.8786 for a married person. In the second stage, which is based on already having at least one partner, the probability of having multiple partners drops from 0.16 for an unmarried person to 0.038 for those who are married. 
+For the first stage of the analysis, the models predict a 0.5934 probability for an unmarried person to have at least one partner, compared to a significantly higher probability of 0.8786 for a married person. In the second stage the probability of having multiple partners drops from 0.16 for an unmarried person to 0.038 for those who are married. 
 
 Overall the results show that marriage is primary related to the probability of having a partner and decreasing the probability of having more than one partner, rather than determining the exact number of partners an individual has. 
 
 ### Zelterman:
 This can be related to the general idea behind Zeltermans reasoning, where the distinction between zero counts and positive counts may reflect the different underlying processes. In our case, the difference between having no partners, having at least one partner and having more than one partner appears to be important. Our approach is not a full Zelterman model, but it follows a similar intuition by separating different parts of the response rather than stimulating everything in one single count model.  
-
-
