@@ -1,0 +1,94 @@
+---
+title: "Home assignment - time series"
+format: pdf
+editor: visual
+---
+
+```{r}
+
+library(readxl)
+library(tidyverse)
+library(lubridate)
+
+kpif_raw <- read_excel("KPIF.xlsx")
+
+head(kpif_raw)
+
+
+x <- read_excel("KPIF.xlsx", col_names = FALSE)
+
+kpif <- tibble(
+  date = unlist(x[3, ]),
+  kpif = as.numeric(unlist(x[4, ]))
+) |>
+  drop_na()
+
+library(readxl)
+library(tidyverse)
+library(zoo)
+
+
+
+
+kpif_raw <- read_excel("KPIF.xlsx", col_names = FALSE)
+
+kpif <- tibble(
+  date = as.yearmon(unlist(kpif_raw[3, ]), "%YM%m"),
+  kpif = as.numeric(unlist(kpif_raw[4, ]))
+) |>
+  drop_na()
+
+
+
+
+
+
+eur_raw <- read_excel(
+  "/Users/joelsoderman/Downloads/DETALJERAT RESULTAT_2026-05-18_10_35.xlsx",
+  col_names = FALSE
+)
+
+eursek <- eur_raw |>
+  slice(6:n()) |>
+  transmute(
+    date = as.yearmon(paste(...1), "%Y %B"),
+    eursek = as.numeric(...2)
+  ) |>
+  drop_na()
+
+
+
+
+
+
+energy_raw <- read_excel(
+  "/Users/joelsoderman/Downloads/0000083S_20260518-103708.xlsx",
+  col_names = FALSE
+)
+
+energy <- tibble(
+  date = as.character(unlist(energy_raw[3, -1])),
+  energy = as.numeric(unlist(energy_raw[4, -1]))
+) |>
+  filter(!is.na(date), !is.na(energy)) |>
+  mutate(date = as.yearmon(date, "%YM%m"))
+
+
+
+
+
+
+
+df <- kpif |>
+  inner_join(eursek, by = "date") |>
+  inner_join(energy, by = "date") |>
+  arrange(date)
+
+
+
+
+glimpse(df)
+head(df)
+tail(df)
+
+```
