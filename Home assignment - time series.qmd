@@ -1,94 +1,535 @@
 ---
-title: "Home assignment - time series"
-format: pdf
-editor: visual
+title: "Time Series Home Assignment"
+subtitle: "Group XX"
+author: "Group XX"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    number_sections: true
+fontsize: 9pt
+geometry: margin=0.7in
+header-includes:
+  - \usepackage[fontsize=9pt]{scrextend}
 ---
 
-```{r}
-
+```{r results='hide'}
 library(readxl)
-library(tidyverse)
-library(lubridate)
+library(forecast)
+library(tseries)
+library(vars)
+library(FinTS)
+library(knitr)
 
-kpif_raw <- read_excel("KPIF.xlsx")
-
-head(kpif_raw)
-
-
-x <- read_excel("KPIF.xlsx", col_names = FALSE)
-
-kpif <- tibble(
-  date = unlist(x[3, ]),
-  kpif = as.numeric(unlist(x[4, ]))
-) |>
-  drop_na()
-
-library(readxl)
-library(tidyverse)
-library(zoo)
-
-
-
-
-kpif_raw <- read_excel("KPIF.xlsx", col_names = FALSE)
-
-kpif <- tibble(
-  date = as.yearmon(unlist(kpif_raw[3, ]), "%YM%m"),
-  kpif = as.numeric(unlist(kpif_raw[4, ]))
-) |>
-  drop_na()
-
-
-
-
-
-
-eur_raw <- read_excel(
-  "/Users/joelsoderman/Downloads/DETALJERAT RESULTAT_2026-05-18_10_35.xlsx",
-  col_names = FALSE
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = NA,
+  fig.width = 6.5,
+  fig.height = 2.6,
+  fig.align = "center",
+  out.width = "74%",
+  size = "tiny"
 )
-
-eursek <- eur_raw |>
-  slice(6:n()) |>
-  transmute(
-    date = as.yearmon(paste(...1), "%Y %B"),
-    eursek = as.numeric(...2)
-  ) |>
-  drop_na()
-
-
-
-
-
-
-energy_raw <- read_excel(
-  "/Users/joelsoderman/Downloads/0000083S_20260518-103708.xlsx",
-  col_names = FALSE
-)
-
-energy <- tibble(
-  date = as.character(unlist(energy_raw[3, -1])),
-  energy = as.numeric(unlist(energy_raw[4, -1]))
-) |>
-  filter(!is.na(date), !is.na(energy)) |>
-  mutate(date = as.yearmon(date, "%YM%m"))
-
-
-
-
-
-
-
-df <- kpif |>
-  inner_join(eursek, by = "date") |>
-  inner_join(energy, by = "date") |>
-  arrange(date)
-
-
-
-
-glimpse(df)
-head(df)
-tail(df)
-
 ```
+
+# Step 0: Pick a Data Set
+
+In this report I study Swedish inflation, measured by KPIF. I use the EUR/SEK exchange rate and an energy-price index as supporting variables. Both are natural choices: a weaker krona can raise import prices, and energy prices are an important cost component in consumer prices.
+
+The data are monthly and come from Statistics Sweden files in the assignment folder. The main variable is KPIF, the first supporting variable is EUR/SEK, and the second supporting variable is the CPI sub-index `04.5.5.0 Annan energi för uppvärmning och kylning (IV)`.
+
+# Step 1: Describe the Data
+
+The common sample starts in January 2008 because that is the first month where all three series are available. The data are monthly, so the frequency is 12. I reserve the last 30 observations for forecast evaluation, as required in the instructions.
+
+```{r step1-read-data, results='hide'}
+month_map <- c(
+  januari = "01", februari = "02", mars = "03", april = "04",
+  maj = "05", juni = "06", juli = "07", augusti = "08",
+  september = "09", oktober = "10", november = "11", december = "12"
+)
+
+read_kpif <- function(path) {
+  raw <- read_xlsx(path, col_names = FALSE)
+  data.frame(
+    date = as.Date(paste0(sub("M", "-", unlist(raw[3, ], use.names = FALSE)), "-01")),
+    kpif = as.numeric(unlist(raw[4, ], use.names = FALSE))
+  )
+}
+
+read_eursek <- function(path) {
+  raw <- read_xlsx(path, col_names = FALSE)
+  parts <- strsplit(trimws(raw[[1]][6:nrow(raw)]), " +")
+  data.frame(
+    date = as.Date(sprintf(
+      "%s-%s-01",
+      vapply(parts, `[`, character(1), 1),
+      unname(month_map[vapply(parts, `[`, character(1), 2)])
+    )),
+    eursek = as.numeric(raw[[2]][6:nrow(raw)])
+  )
+}
+
+read_energy <- function(path) {
+  raw <- read_xlsx(path, col_names = FALSE)
+  vals <- unlist(raw[4, -1], use.names = FALSE)
+  vals[vals == ".."] <- NA
+  data.frame(
+    date = as.Date(paste0(sub("M", "-", unlist(raw[3, -1], use.names = FALSE)), "-01")),
+    energy = as.numeric(vals)
+  )
+}
+
+data_dir <- file.path(getwd(), "NY tidserie")
+
+kpif_df <- read_kpif(file.path(data_dir, "KPIF (kopia).xlsx"))
+eursek_df <- read_eursek(file.path(data_dir, "DETALJERAT RESULTAT_2026-05-18_10_35 (kopia).xlsx"))
+energy_df <- read_energy(file.path(data_dir, "0000083S_20260518-103708 (kopia).xlsx"))
+
+data_df <- merge(kpif_df, eursek_df, by = "date")
+data_df <- merge(data_df, energy_df, by = "date")
+data_df <- na.omit(data_df)
+data_df <- data_df[order(data_df$date), ]
+
+n_test <- 30
+alpha <- 0.05
+
+kpif_ts <- ts(data_df$kpif, start = c(2008, 1), frequency = 12)
+eursek_ts <- ts(data_df$eursek, start = c(2008, 1), frequency = 12)
+energy_ts <- ts(data_df$energy, start = c(2008, 1), frequency = 12)
+
+kpif_train <- window(kpif_ts, end = time(kpif_ts)[length(kpif_ts) - n_test])
+eursek_train <- window(eursek_ts, end = time(eursek_ts)[length(eursek_ts) - n_test])
+energy_train <- window(energy_ts, end = time(energy_ts)[length(energy_ts) - n_test])
+
+test_dates <- tail(data_df$date, n_test)
+sample_start <- min(data_df$date)
+sample_end <- max(data_df$date)
+train_end <- data_df$date[nrow(data_df) - n_test]
+```
+
+The full sample runs from `r sample_start` to `r sample_end`. The training sample ends in `r train_end`, and the evaluation period consists of the final 30 months.
+
+```{r step1-plot, fig.height=4.4}
+par(mfrow = c(3, 1), mar = c(3, 3, 2, 1))
+plot(kpif_train, main = "KPIF", xlab = "", ylab = "")
+plot(eursek_train, main = "EUR/SEK", xlab = "", ylab = "")
+plot(energy_train, main = "Energy prices", xlab = "", ylab = "")
+```
+
+KPIF shows a clear upward trend, especially around 2021--2023. EUR/SEK is also persistent in levels, and the energy series is more volatile than the other two. This makes the exchange rate and energy prices reasonable supporting variables for modelling inflation.
+
+```{r helper-functions, results='hide'}
+yoy_change <- function(x) {
+  100 * diff(log(x), lag = 12)
+}
+
+rmse_fun <- function(actual, pred) {
+  sqrt(mean((actual - pred)^2))
+}
+
+mae_fun <- function(actual, pred) {
+  mean(abs(actual - pred))
+}
+
+plot_forecast <- function(full_dates, full_kpif, fc, main_text) {
+  keep <- seq(max(1, length(full_kpif) - 59), length(full_kpif))
+  plot(
+    full_dates[keep],
+    full_kpif[keep],
+    type = "l",
+    main = main_text,
+    xlab = "",
+    ylab = "KPIF"
+  )
+  lines(fc$date, fc$pred, col = "red")
+  lines(fc$date, fc$lower, col = "blue", lty = 2)
+  lines(fc$date, fc$upper, col = "blue", lty = 2)
+  legend(
+    "topleft",
+    legend = c("Actual", "Forecast", "95% interval"),
+    col = c("black", "red", "blue"),
+    lty = c(1, 1, 2),
+    bty = "n"
+  )
+}
+```
+
+# Step 2: Exponential Smoothing
+
+In this section I only use KPIF. Since the data are monthly, I use the two horizons `h = 1` and `h = 12`. I use 95% prediction intervals in the forecast figures.
+
+```{r step2-fit, fig.height=2.5}
+hw_fit <- HoltWinters(kpif_train)
+ts.plot(
+  kpif_train,
+  hw_fit$fitted[, "xhat"],
+  col = c("black", "red"),
+  lty = 1,
+  xlab = "",
+  ylab = "",
+  main = "KPIF and fitted values from Holt-Winters"
+)
+legend("topleft", legend = c("KPIF", "Fitted"), col = c("black", "red"), lty = 1, bty = "n")
+```
+
+```{r step2-rolling-functions, results='hide'}
+rolling_hw <- function(x, h) {
+  first <- length(x) - n_test + 1
+  out <- data.frame(date = test_dates, actual = as.numeric(x[first:length(x)]), pred = NA, lower = NA, upper = NA)
+  for (i in first:length(x)) {
+    fit <- HoltWinters(window(x, end = time(x)[i - h]))
+    fc <- predict(fit, n.ahead = h, prediction.interval = TRUE, level = 1 - alpha)
+    out$pred[i - first + 1] <- fc[h, "fit"]
+    out$lower[i - first + 1] <- fc[h, "lwr"]
+    out$upper[i - first + 1] <- fc[h, "upr"]
+  }
+  out
+}
+
+rolling_rw <- function(x, h) {
+  first <- length(x) - n_test + 1
+  out <- data.frame(date = test_dates, actual = as.numeric(x[first:length(x)]), pred = NA, lower = NA, upper = NA)
+  for (i in first:length(x)) {
+    fc <- rwf(window(x, end = time(x)[i - h]), h = h, level = 95, drift = FALSE)
+    out$pred[i - first + 1] <- fc$mean[h]
+    out$lower[i - first + 1] <- fc$lower[h, 1]
+    out$upper[i - first + 1] <- fc$upper[h, 1]
+  }
+  out
+}
+
+hw_1 <- rolling_hw(kpif_ts, 1)
+hw_12 <- rolling_hw(kpif_ts, 12)
+rw_1 <- rolling_rw(kpif_ts, 1)
+rw_12 <- rolling_rw(kpif_ts, 12)
+
+step2_table <- data.frame(
+  model = c("Exponential smoothing", "Random walk", "Exponential smoothing", "Random walk"),
+  horizon = c(1, 1, 12, 12),
+  RMSE = c(
+    rmse_fun(hw_1$actual, hw_1$pred),
+    rmse_fun(rw_1$actual, rw_1$pred),
+    rmse_fun(hw_12$actual, hw_12$pred),
+    rmse_fun(rw_12$actual, rw_12$pred)
+  ),
+  MAE = c(
+    mae_fun(hw_1$actual, hw_1$pred),
+    mae_fun(rw_1$actual, rw_1$pred),
+    mae_fun(hw_12$actual, hw_12$pred),
+    mae_fun(rw_12$actual, rw_12$pred)
+  )
+)
+```
+
+```{r step2-table}
+kable(step2_table, digits = 3, caption = "Forecast accuracy for exponential smoothing and random walk")
+```
+
+```{r step2-forecast-h1, fig.height=2.2}
+plot_forecast(data_df$date, data_df$kpif, hw_1, "Exponential smoothing forecasts, h = 1")
+```
+
+```{r step2-forecast-h12, fig.height=2.2}
+plot_forecast(data_df$date, data_df$kpif, hw_12, "Exponential smoothing forecasts, h = 12")
+```
+
+The exponential smoother captures the general level of KPIF, but the random walk has lower forecast errors at both horizons. For this data, the benchmark is therefore hard to beat in the exponential smoothing step.
+
+# Step 3: Stationarity
+
+I use the same transformation on all three series: the 12-month log change,
+
+$$100(\log x_t - \log x_{t-12}).$$
+
+This is a natural choice for monthly data because it removes trend and seasonality and is still easy to interpret.
+
+```{r step3-adf, results='hide'}
+kpif_stat <- yoy_change(kpif_train)
+eursek_stat <- yoy_change(eursek_train)
+energy_stat <- yoy_change(energy_train)
+
+adf_table <- data.frame(
+  series = c(
+    "KPIF level", "EUR/SEK level", "Energy level",
+    "KPIF transformed", "EUR/SEK transformed", "Energy transformed"
+  ),
+  statistic = c(
+    adf.test(kpif_train)$statistic,
+    adf.test(eursek_train)$statistic,
+    adf.test(energy_train)$statistic,
+    adf.test(kpif_stat)$statistic,
+    adf.test(eursek_stat)$statistic,
+    adf.test(energy_stat)$statistic
+  ),
+  p_value = c(
+    adf.test(kpif_train)$p.value,
+    adf.test(eursek_train)$p.value,
+    adf.test(energy_train)$p.value,
+    adf.test(kpif_stat)$p.value,
+    adf.test(eursek_stat)$p.value,
+    adf.test(energy_stat)$p.value
+  )
+)
+```
+
+```{r step3-adf-table}
+kable(adf_table, digits = 4, caption = "ADF tests before and after transformation")
+```
+
+The ADF results show non-stationarity in levels and much stronger evidence of stationarity after the transformation.
+
+```{r step3-stationary-plots, fig.height=4.8}
+par(mfrow = c(3, 2), mar = c(3, 3, 2, 1))
+plot(kpif_stat, main = "KPIF transformed", xlab = "", ylab = "")
+acf(kpif_stat, main = "ACF KPIF")
+plot(eursek_stat, main = "EUR/SEK transformed", xlab = "", ylab = "")
+acf(eursek_stat, main = "ACF EUR/SEK")
+plot(energy_stat, main = "Energy transformed", xlab = "", ylab = "")
+acf(energy_stat, main = "ACF Energy")
+```
+
+After the transformation, all three series move around more stable means and are much more suitable for ARMA and VAR modelling.
+
+# Step 4: ARMA
+
+Following the computer labs, I fit the ARMA model to the stationary version of KPIF. `auto.arima()` suggests a simple AR(1), so I estimate that model directly with `Arima()`.
+
+```{r step4-fit, fig.height=2.5}
+arma_fit <- Arima(kpif_stat, order = c(1, 0, 0), include.mean = TRUE, method = "ML")
+arma_fitted <- kpif_stat - residuals(arma_fit)
+ts.plot(
+  kpif_stat,
+  arma_fitted,
+  col = c("black", "red"),
+  lty = 1,
+  xlab = "",
+  ylab = "",
+  main = "Transformed KPIF and fitted values from AR(1)"
+)
+legend("topleft", legend = c("Transformed KPIF", "Fitted"), col = c("black", "red"), lty = 1, bty = "n")
+```
+
+```{r step4-residual-tests, results='hide'}
+arma_tests <- data.frame(
+  test = c("Ljung-Box", "Jarque-Bera", "ARCH LM"),
+  statistic = c(
+    Box.test(residuals(arma_fit), lag = 12, type = "Ljung-Box", fitdf = 1)$statistic,
+    jarque.bera.test(residuals(arma_fit))$statistic,
+    ArchTest(residuals(arma_fit), lags = 12)$statistic
+  ),
+  p_value = c(
+    Box.test(residuals(arma_fit), lag = 12, type = "Ljung-Box", fitdf = 1)$p.value,
+    jarque.bera.test(residuals(arma_fit))$p.value,
+    ArchTest(residuals(arma_fit), lags = 12)$p.value
+  )
+)
+
+rolling_arma <- function(x, h) {
+  first <- length(x) - n_test + 1
+  out <- data.frame(date = test_dates, actual = as.numeric(x[first:length(x)]), pred = NA, lower = NA, upper = NA)
+  for (i in first:length(x)) {
+    y <- yoy_change(window(x, end = time(x)[i - h]))
+    fit <- Arima(y, order = c(1, 0, 0), include.mean = TRUE, method = "ML")
+    fc <- forecast(fit, h = h, level = 95)
+    out$pred[i - first + 1] <- as.numeric(x[i - 12]) * exp(fc$mean[h] / 100)
+    out$lower[i - first + 1] <- as.numeric(x[i - 12]) * exp(fc$lower[h, 1] / 100)
+    out$upper[i - first + 1] <- as.numeric(x[i - 12]) * exp(fc$upper[h, 1] / 100)
+  }
+  out
+}
+
+arma_1 <- rolling_arma(kpif_ts, 1)
+arma_12 <- rolling_arma(kpif_ts, 12)
+
+step4_table <- data.frame(
+  model = c("ARMA", "Random walk", "ARMA", "Random walk"),
+  horizon = c(1, 1, 12, 12),
+  RMSE = c(
+    rmse_fun(arma_1$actual, arma_1$pred),
+    rmse_fun(rw_1$actual, rw_1$pred),
+    rmse_fun(arma_12$actual, arma_12$pred),
+    rmse_fun(rw_12$actual, rw_12$pred)
+  ),
+  MAE = c(
+    mae_fun(arma_1$actual, arma_1$pred),
+    mae_fun(rw_1$actual, rw_1$pred),
+    mae_fun(arma_12$actual, arma_12$pred),
+    mae_fun(rw_12$actual, rw_12$pred)
+  )
+)
+```
+
+```{r step4-residual-table}
+kable(arma_tests, digits = 4, caption = "Residual diagnostics for the ARMA model")
+```
+
+```{r step4-residual-plot, fig.height=2.6}
+par(mfrow = c(2, 1), mar = c(3, 3, 2, 1))
+plot(residuals(arma_fit), type = "l", main = "ARMA residuals", xlab = "", ylab = "")
+acf(residuals(arma_fit), main = "ACF of ARMA residuals")
+```
+
+```{r step4-table}
+kable(step4_table, digits = 3, caption = "Forecast accuracy for ARMA and random walk")
+```
+
+```{r step4-forecast-h1, fig.height=2.2}
+plot_forecast(data_df$date, data_df$kpif, arma_1, "ARMA forecasts, h = 1")
+```
+
+```{r step4-forecast-h12, fig.height=2.2}
+plot_forecast(data_df$date, data_df$kpif, arma_12, "ARMA forecasts, h = 12")
+```
+
+The ARMA model is easy to estimate and interpret, but the residual tests are not ideal. In this application it does not outperform the random walk benchmark, so its forecasting value is limited.
+
+# Step 5: VAR
+
+In the VAR step I use all three transformed series. Following the computer labs, I choose the lag length with `VARselect()` and then estimate the model with `VAR()`.
+
+```{r step5-fit, results='hide'}
+var_train <- ts(
+  cbind(
+    kpif = as.numeric(kpif_stat),
+    eursek = as.numeric(eursek_stat),
+    energy = as.numeric(energy_stat)
+  ),
+  start = start(kpif_stat),
+  frequency = 12
+)
+
+lag_var <- VARselect(var_train, lag.max = 6, type = "const")$selection["AIC(n)"]
+var_fit <- VAR(var_train, p = lag_var, type = "const")
+
+var_serial <- serial.test(var_fit, lags.pt = 12, type = "PT.adjusted")
+var_normal <- normality.test(var_fit)
+var_arch <- arch.test(var_fit, lags.multi = 12)
+
+var_tests <- data.frame(
+  test = c("Serial correlation", "Normality", "ARCH"),
+  statistic = c(
+    var_serial$serial$statistic,
+    var_normal$jb.mul$JB$statistic,
+    var_arch$arch.mul$statistic
+  ),
+  p_value = c(
+    var_serial$serial$p.value,
+    var_normal$jb.mul$JB$p.value,
+    var_arch$arch.mul$p.value
+  )
+)
+
+irf_eur <- irf(var_fit, impulse = "eursek", response = "kpif", n.ahead = 24, boot = TRUE)
+irf_energy <- irf(var_fit, impulse = "energy", response = "kpif", n.ahead = 24, boot = TRUE)
+
+rolling_var <- function(kpif, eursek, energy, h) {
+  first <- length(kpif) - n_test + 1
+  out <- data.frame(date = test_dates, actual = as.numeric(kpif[first:length(kpif)]), pred = NA, lower = NA, upper = NA)
+  for (i in first:length(kpif)) {
+    kpif_part <- yoy_change(window(kpif, end = time(kpif)[i - h]))
+    eursek_part <- yoy_change(window(eursek, end = time(eursek)[i - h]))
+    energy_part <- yoy_change(window(energy, end = time(energy)[i - h]))
+    train_part <- ts(
+      cbind(
+        kpif = as.numeric(kpif_part),
+        eursek = as.numeric(eursek_part),
+        energy = as.numeric(energy_part)
+      ),
+      start = start(kpif_part),
+      frequency = 12
+    )
+    lag_part <- VARselect(train_part, lag.max = 6, type = "const")$selection["AIC(n)"]
+    fit_part <- VAR(train_part, p = lag_part, type = "const")
+    fc <- predict(fit_part, n.ahead = h, ci = 1 - alpha)$fcst$kpif
+    out$pred[i - first + 1] <- as.numeric(kpif[i - 12]) * exp(fc[h, "fcst"] / 100)
+    out$lower[i - first + 1] <- as.numeric(kpif[i - 12]) * exp(fc[h, "lower"] / 100)
+    out$upper[i - first + 1] <- as.numeric(kpif[i - 12]) * exp(fc[h, "upper"] / 100)
+  }
+  out
+}
+
+var_1 <- rolling_var(kpif_ts, eursek_ts, energy_ts, 1)
+var_12 <- rolling_var(kpif_ts, eursek_ts, energy_ts, 12)
+
+step5_table <- data.frame(
+  model = c("VAR", "Random walk", "VAR", "Random walk"),
+  horizon = c(1, 1, 12, 12),
+  RMSE = c(
+    rmse_fun(var_1$actual, var_1$pred),
+    rmse_fun(rw_1$actual, rw_1$pred),
+    rmse_fun(var_12$actual, var_12$pred),
+    rmse_fun(rw_12$actual, rw_12$pred)
+  ),
+  MAE = c(
+    mae_fun(var_1$actual, var_1$pred),
+    mae_fun(rw_1$actual, rw_1$pred),
+    mae_fun(var_12$actual, var_12$pred),
+    mae_fun(rw_12$actual, rw_12$pred)
+  )
+)
+```
+
+```{r step5-table}
+kable(var_tests, digits = 4, caption = "Residual diagnostics for the VAR model")
+```
+
+```{r step5-irf, fig.height=4.1}
+par(mfrow = c(2, 1), mar = c(3, 3, 2, 1))
+plot(irf_eur)
+plot(irf_energy)
+```
+
+The impulse-response functions suggest that positive shocks to EUR/SEK and energy prices are followed by a positive response in KPIF. This is economically reasonable and is the main strength of the VAR model in this report.
+
+```{r step5-accuracy}
+kable(step5_table, digits = 3, caption = "Forecast accuracy for VAR and random walk")
+```
+
+```{r step5-forecast-h1, fig.height=2.2}
+plot_forecast(data_df$date, data_df$kpif, var_1, "VAR forecasts, h = 1")
+```
+
+```{r step5-forecast-h12, fig.height=2.2}
+plot_forecast(data_df$date, data_df$kpif, var_12, "VAR forecasts, h = 12")
+```
+
+The VAR model adds a useful interpretation through the impulse-response analysis, but it does not outperform the random walk benchmark in forecast accuracy.
+
+# Final Comparison
+
+```{r final-comparison}
+final_table <- data.frame(
+  model = c("Exponential smoothing", "Random walk", "ARMA", "VAR"),
+  RMSE_h1 = c(
+    rmse_fun(hw_1$actual, hw_1$pred),
+    rmse_fun(rw_1$actual, rw_1$pred),
+    rmse_fun(arma_1$actual, arma_1$pred),
+    rmse_fun(var_1$actual, var_1$pred)
+  ),
+  RMSE_h12 = c(
+    rmse_fun(hw_12$actual, hw_12$pred),
+    rmse_fun(rw_12$actual, rw_12$pred),
+    rmse_fun(arma_12$actual, arma_12$pred),
+    rmse_fun(var_12$actual, var_12$pred)
+  ),
+  MAE_h1 = c(
+    mae_fun(hw_1$actual, hw_1$pred),
+    mae_fun(rw_1$actual, rw_1$pred),
+    mae_fun(arma_1$actual, arma_1$pred),
+    mae_fun(var_1$actual, var_1$pred)
+  ),
+  MAE_h12 = c(
+    mae_fun(hw_12$actual, hw_12$pred),
+    mae_fun(rw_12$actual, rw_12$pred),
+    mae_fun(arma_12$actual, arma_12$pred),
+    mae_fun(var_12$actual, var_12$pred)
+  )
+)
+
+kable(final_table, digits = 3, caption = "Forecast accuracy across all models")
+```
+
+The random walk model performs best at both horizons in this data set. Exponential smoothing is simple and sensible, but it does not improve on the benchmark. The ARMA model is also weaker than the benchmark, and the VAR model is mainly useful for interpretation through the impulse-response functions rather than for forecasting. Overall, the assignment shows that the supporting variables are interesting from an economic point of view, but they do not lead to better forecasts than the random walk in this case.
+
