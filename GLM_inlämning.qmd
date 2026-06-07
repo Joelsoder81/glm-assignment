@@ -275,14 +275,6 @@ The large logit model estimates that approximately 31.6 percent of the non-respo
 
 
 # Task 4
-Saknas:
-- Evaluate the censoring of data. 
-- Goodness of fit testet behöver nödvändigtvis inte vara överdepresion?
-- Kolla igenom språket
-- Se till att many_partners matchar modellerna
-- Längre text om Zelterman - Se till att den är korrekt?
-- Kolla mallformatering så att allt stämmer. 
-
 ```{r}
 #| echo: false
 #| output: false
