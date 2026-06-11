@@ -106,8 +106,18 @@ knitr::kable(summary(model)$coefficients, digits = 3, caption = "Pooled Model")
 The p-value for the interaction term is 0.787. Since this p-value is large, there is no statistical evidence that the association between being female and voting for Trump changed between the two years. Therefore, we cannot reject the null hypothesis that the effect of being female is the same in 2022 and 2024. 
 
 # Task 2:
-We estimated four models: a small and a large specification, each under both a logit and a probit link. To make the model comparisons fair, all four models were estimated on the same complete cases. The smaller models include only sex, gun ownership, and education, while the larger models also include region, race, type of community, and logged income. We compare the models by examining the estimated coefficients, using ANOVA to compare the smaller and larger specifications, and using AIC to compare overall model fit. We also verify that all four models are estimated on the same number of observations.
 
+We estimated four models: a small and a large specification, each under both a logit and a probit link.
+
+After creating the new list "vars_needed" we exclude all observations with a NA-value to secure that every model uses the same observations. (Note: if the NA's aren't random, we risk to get bias). We use 1547 complete observations in our models. 
+
+The smaller models include only sex, gun ownership, and education, while the larger models also include region, race, type of community and income. 
+
+The variables included in our models were selected based solely on anecdotal considerations.For example, we include gun ownership because it's often associated with support for the republican party. Region is included to explore regional differences. Income is included as a measure of socioeconomic status, our prior believes suggest that a lower socioeconomic status often is associated with a higher likelihood to support the democratic party etc.
+
+We have renamed "pres20", "sex", "owngun" and "degree" in the table below according to how they are coded in our models. "Region", "race" and "res16" have been assigned a value and renamed to represent the outcome of the value. The mean column gives us the proportion of observations belonging to the outcome. For example, 36% of the respondents voted for Trump in the election 2020.
+
+We also have "realinc" who is a continious variable. In this case, the mean simply represents the average across our observations. (This value should not be given to much weight as the variable will be log-transformed later on).
 
 ```{r}
 #| output: false
@@ -119,6 +129,43 @@ vars_needed <- c(
 
 GSS_clean <- na.omit(GSSdata24[, vars_needed])
 
+nrow(GSS_clean)
+
+descriptive <- data.frame(
+  Variable = c(
+    "Voted Trump (2020)",
+    "Female responder",
+    "Owns a gun",
+    "College degree",
+    "Region (South)",
+    "Race (Black)",
+    "Urban residence when 16 years old (over 250,000 residents)",
+    "Family income"
+  ),
+
+  Mean = c(
+    mean(GSS_clean$pres20 == 2),
+    mean(GSS_clean$sex == 2),
+    mean(GSS_clean$owngun == 1),
+    mean(GSS_clean$degree %in% c(4,5)),
+    mean(GSS_clean$region == 3),   
+    mean(GSS_clean$race == 2),
+    mean(GSS_clean$res16 >= 4),    
+    mean(GSS_clean$realinc))
+)
+
+knitr::kable(descriptive, digits = 3, caption = "Renamed table (analysis sample)")
+
+```
+```{r}
+#| echo: false
+knitr::kable(descriptive, digits = 3, caption = "Renamed table (analysis sample)")
+```
+In our larger models, we use the factor()-function for "region", "race" and "res16". It converts the variables into categorical and assigns the first level as reference category while the remaining levels are included as dummy variables. For example "northeast" is the reference category for "region" while "midwest", "south" and "west" are dummy variables. 
+ 
+We compare the models by examining the estimated coefficients, using ANOVA to compare the smaller and larger specifications, and using AIC to compare overall model fit. We also verify that all four models are estimated on the same number of observations.
+
+```{r}
 m_small_logit <- glm(
   pres20 == 2 ~
     I(sex == 2) +
@@ -162,50 +209,13 @@ m_big_probit <- glm(
   data = GSS_clean,
   family = binomial(link = "probit")
 )
-
 ```
-
-### Small logit model
-
-```{r}
-#| echo: false
-knitr::kable(summary(m_small_logit)$coefficients, 
-             caption = "Small logit model")
-```
-The small logit model shows that gun ownership is positively associated with voting for Trump, while having a Bachelor’s or Graduate degree is negatively associated with the outcome. The coefficient for being female is negative, but it is not statistically significant, which means that we do not find clear evidence of a gender effect in the smaller logit specification.
-
-### Big logit model
-```{r}
-#| echo: false
-knitr::kable(summary(m_big_logit)$coefficients, 
-             caption = "Big logit model")
-
-```
-In the larger logit model, the main pattern remains similar. Gun ownership is still positively associated with voting for Trump, while higher education is negatively associated with the outcome. After adding region, race, type of community, and income, the model captures more variation in the data, suggesting that these background variables are also important for explaining Trump voting.
-
-
-```{r}
-#| echo: false
-knitr::kable(summary(m_small_probit)$coefficients, 
-             caption = "Small probit model")
-```
-The small probit model gives results that are very similar to the small logit model. Gun ownership is again positively associated with voting for Trump, while higher education is negatively associated with the outcome. The effect of being female remains negative, but not statistically significant.
-
-```{r}
-#| echo: false
-knitr::kable(summary(m_big_probit)$coefficients, 
-             caption = "Big probit model")
-```
-The large probit model also shows a pattern similar to the large logit model. The signs and significance levels of the main variables are broadly consistent across the two link functions, which suggests that our conclusions are not very sensitive to whether we use a logit or a probit link.
-
 ```{r}
 #| echo: false
 knitr::kable(anova(m_small_logit, m_big_logit), 
              caption = "ANOVA: Small vs Large logit Model") 
       
 ```
-
-
 ```{r}
 #| echo: false
 knitr::kable(anova(m_small_probit, m_big_probit), 
@@ -213,12 +223,9 @@ knitr::kable(anova(m_small_probit, m_big_probit),
 ```
 The ANOVA results show that the larger model improves the fit significantly compared with the smaller model, both for the logit and probit specifications. This suggests that the additional variables contribute useful explanatory information and should be included in the final model.
 
-To compare the overall fit of the four models, we use the Akaike Information Criterion (AIC):
-$$
+To compare the overall fit of the four models, we use the Akaike Information Criterion (AIC): $$
 AIC = 2p - 2 \log(L(\hat{\beta}))
-$$
-where $p$ is the number of parameters in the model and $(L(\hat{\beta})$ is the likelihood evaluated at the estimated parameter values.Lower AIC values indicate a better balance between model fit and model complexity.
-
+$$ where $p$ is the number of parameters in the model and $(L(\hat{\beta})$ is the likelihood evaluated at the estimated parameter values.Lower AIC values indicate a better balance between model fit and model complexity.
 ```{r}
 #| echo: false
 aic_tab <- AIC(m_small_logit, m_big_logit, m_small_probit, m_big_probit)
@@ -229,8 +236,6 @@ knitr::kable(aic_tab[, c("df", "AIC")], caption = "AIC")
 
 
 ```
-Overall, the results suggest that demographic and social background variables are important for explaining Trump voting in 2020. In particular, gun ownership is associated with a higher probability of voting for Trump, while higher education is associated with a lower probability. Both the ANOVA results and the AIC values indicate that the larger models fit the data better than the smaller models. Since the large logit model has the lowest AIC among the four models and is easier to interpret than the corresponding probit model, we choose it as our preferred final model. The similarity between the logit and probit results also suggests that our main conclusions are robust to the choice of link function.
-
 ```{r}
 #| output: false
 #| echo: false
@@ -239,6 +244,47 @@ nobs(m_big_logit)
 nobs(m_small_probit)
 nobs(m_big_probit)
 ```
+### Small logit model
+```{r}
+#| echo: false
+knitr::kable(summary(m_small_logit)$coefficients, 
+             caption = "Small logit model")
+```
+
+The small logit model shows that gun ownership is positively associated with voting for Trump, while having a Bachelor’s or Graduate degree is negatively associated with the outcome. The coefficient for being female is negative, but it is not statistically significant, which means that we do not find clear evidence of a gender effect in the smaller logit specification.
+
+### Big logit model
+```{r}
+#| echo: false
+knitr::kable(summary(m_big_logit)$coefficients, 
+             caption = "Big logit model")
+
+```
+Since this is our prefered model, we will look a bit closer on the output. The variables that are consistently included give us the same result as the other models. Owning a gun tends to correlate with voting for Trump while a college degree and being a woman are negative associated with voting for Trump. The "woman" coefficient is not statistically significant though. 
+
+When we check the factor()-categories we can find that several categories are statistically significant wich indicating systematic differences across the categories. For example race3 (black) are less likely to vote for Trump then our reference category (white). 
+
+We can also see that our estimate for the log-transformed income variable is negative and statistically significant. When the family income goes up, the probability of voting for Trump goes down. 
+
+In the larger logit model, the main pattern remains similar. Gun ownership is still positively associated with voting for Trump, while higher education is negatively associated with the outcome. After adding region, race, type of community, and income, the model captures more variation in the data, suggesting that these background variables are also important for explaining Trump voting.
+
+### Small probit model
+```{r}
+#| echo: false
+knitr::kable(summary(m_small_probit)$coefficients, 
+             caption = "Small probit model")
+```
+The small probit model gives results that are very similar to the small logit model. Gun ownership is again positively associated with voting for Trump, while higher education is negatively associated with the outcome. The effect of being female remains negative, but not statistically significant.
+
+### Large probit model
+```{r}
+#| echo: false
+knitr::kable(summary(m_big_probit)$coefficients, 
+             caption = "Big probit model")
+```
+The large probit model also shows a pattern similar to the large logit model. The signs and significance levels of the main variables are broadly consistent across the two link functions, which suggests that our conclusions are not very sensitive to whether we use a logit or a probit link.
+
+Overall, the results suggest that demographic and social background variables are important for explaining Trump voting in 2020. In particular, gun ownership is associated with a higher probability of voting for Trump, while higher education is associated with a lower probability. Both the ANOVA results and the AIC values indicate that the larger models fit the data better than the smaller models. Since the large logit model has the lowest AIC among the four models and is easier to interpret than the corresponding probit model, we choose it as our preferred final model. The similarity between the logit and probit results also suggests that our main conclusions are robust to the choice of link function.
 
 # Task 3 
 To answer this task, we first created a new dataset where we only kept observations with complete information on the variables used in our models: sex, gun ownership, education, region, race, type of community, and income. We did this by using complete.cases(...), which checks which rows have no missing values (NA) on these variables. This step is necessary because the models cannot make predictions for individuals if some of the explanatory variables are missing.
